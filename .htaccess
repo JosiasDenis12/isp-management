@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Permitir acceso a archivos estáticos
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^.*$ - [NC,L]
+
+# Redirigir todo lo demás a index.php
+RewriteRule ^(.*)$ index.php [QSA,L]
