@@ -498,7 +498,7 @@
                     <div class="text-center mb-4">
                         <h4 class="text-white">
                             <i class="fas fa-wifi me-2"></i>
-                            Skynetwok
+                            Skynetwork
                         </h4>
                     </div>
                     
