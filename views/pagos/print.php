@@ -325,11 +325,11 @@ if ($type === 'ticket') {
         <!-- Header -->
         <div class="invoice-header clearfix">
             <div class="company-info">
-                <div class="company-name">ISP Management</div>
-                <div class="company-tagline">Servicios de Internet y Telecomunicaciones</div>
+                <div class="company-name">NETWORK</div>
+                <div class="company-tagline">El Internet del Cielo</div>
                 <div>
                     📍 Dirección de la Empresa<br>
-                    📞 +1 (555) 123-4567<br>
+                    📞 +52 1 56 4456 3551<br>
                     ✉️ contacto@ispmanagement.com<br>
                     🌐 www.ispmanagement.com
                 </div>
