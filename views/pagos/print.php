@@ -29,9 +29,9 @@ if ($type === 'ticket') {
             <button onclick="window.print()" style="padding:6px 10px;">🖨️ Imprimir Ticket</button>
         </div>
         <div class="ticket">
-            <div class="center bold">ISP Management</div>
-            <div class="center small">Servicios de Internet</div>
-            <div class="center small">Tel: +1 (555) 123-4567</div>
+            <div class="center bold">NETWORK</div>
+            <div class="center small">El Internet del Cielo</div>
+            <div class="center small">Tel: +52 1 56 4456 3551</div>
             <div class="divider"></div>
             <div class="center">TICKET / NOTA DE COMPRA</div>
             <div class="divider"></div>
