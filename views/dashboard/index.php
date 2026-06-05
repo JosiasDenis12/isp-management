@@ -180,7 +180,7 @@
                 <div class="quick-icon bg-primary-subtle text-primary">
                     <i class="fas fa-users"></i>
                 </div>
-                <h5 class="card-title mb-1">Gestión de Clientes</h5>
+                <h5 class="card-title mb-1">mis webos</h5>
                 <p class="card-text text-muted">Administra clientes, estados y tipos de conexión de manera fácil.</p>
                 <a href="<?php echo url('clientes'); ?>" class="btn btn-primary">
                     Ir a Clientes <i class="fas fa-arrow-right ms-2"></i>
