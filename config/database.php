@@ -1,7 +1,7 @@
 <?php
 class Database {
     private $host = 'localhost';
-    private $db_name = 'isp-management-main';
+    private $db_name = 'isp_management';
     private $username = 'root';
     private $password = '';
     private $conn;

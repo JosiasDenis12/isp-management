@@ -68,8 +68,8 @@
                 <span class="text-muted"><?php echo date('d/m/Y H:i', strtotime($visita['fecha_visita'])); ?></span>
             </div>
             <div class="col-md-4">
-                <strong>Técnico:</strong><br>
-                <span class="text-muted"><?php echo htmlspecialchars($visita['tecnico_nombre'] ?? ''); ?></span>
+                <strong>Técnico asignado:</strong><br>
+                <span class="text-muted"><?php echo !empty($visita['tecnico_nombre']) ? htmlspecialchars($visita['tecnico_nombre']) : 'No especificado'; ?></span>
             </div>
             <div class="col-md-4">
                 <strong>Estado:</strong><br>

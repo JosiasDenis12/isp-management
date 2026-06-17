@@ -50,8 +50,8 @@ if (!empty($visita['fecha_visita'])) {
                     <input type="datetime-local" class="form-control" id="fecha_visita" name="fecha_visita" required value="<?php echo htmlspecialchars($fechaValue); ?>">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label for="tecnico_nombre" class="form-label">Técnico *</label>
-                    <input type="text" class="form-control" id="tecnico_nombre" name="tecnico_nombre" required value="<?php echo htmlspecialchars($visita['tecnico_nombre'] ?? ''); ?>">
+                    <label for="tecnico_nombre" class="form-label">Técnico Asignado *</label>
+                    <input type="text" class="form-control" id="tecnico_nombre" name="tecnico_nombre" maxlength="255" placeholder="Nombre del técnico que asistirá" required value="<?php echo htmlspecialchars($visita['tecnico_nombre'] ?? ''); ?>">
                 </div>
             </div>
 

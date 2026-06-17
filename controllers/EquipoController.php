@@ -159,7 +159,7 @@ class EquipoController {
             $visitaModel->equipo_id = $equipo['id'];
             $visitaModel->fecha_visita = $_POST['fecha_visita'] ?? '';
             $visitaModel->tipo_visita = $_POST['tipo_visita'] ?? '';
-            $visitaModel->tecnico_nombre = trim((string)($_POST['tecnico_visita'] ?? ''));
+            $visitaModel->tecnico_nombre = trim((string)($_POST['tecnico_nombre'] ?? ''));
             $visitaModel->observaciones = trim((string)($_POST['observaciones_visita'] ?? ''));
             $visitaModel->estado = $_POST['estado_visita'] ?? 'programada';
 

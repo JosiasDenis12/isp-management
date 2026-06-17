@@ -181,10 +181,10 @@
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="avatar-sm bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center">
-                                            <?php echo strtoupper(substr($visita['tecnico_nombre'] ?? '', 0, 2)); ?>
+                                            <?php echo strtoupper(substr(($visita['tecnico_nombre'] ?? '') ?: 'NA', 0, 2)); ?>
                                         </div>
                                         <div>
-                                            <strong><?php echo htmlspecialchars($visita['tecnico_nombre'] ?? ''); ?></strong>
+                                            <strong><?php echo !empty($visita['tecnico_nombre']) ? htmlspecialchars($visita['tecnico_nombre']) : 'No asignado'; ?></strong>
                                         </div>
                                     </div>
                                 </td>
@@ -280,14 +280,8 @@
                             <input type="datetime-local" class="form-control" id="fecha_visita" name="fecha_visita" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="tecnico_visita" class="form-label">Técnico Asignado *</label>
-                            <select class="form-select" id="tecnico_visita" name="tecnico_visita" required>
-                                <option value="">Seleccionar técnico...</option>
-                                <option value="Juan Pérez">Juan Pérez</option>
-                                <option value="María García">María García</option>
-                                <option value="Carlos Rodríguez">Carlos Rodríguez</option>
-                                <option value="Ana López">Ana López</option>
-                            </select>
+                            <label for="tecnico_nombre" class="form-label">Técnico Asignado *</label>
+                            <input type="text" class="form-control" id="tecnico_nombre" name="tecnico_nombre" maxlength="255" placeholder="Nombre del técnico que asistirá" required>
                         </div>
                     </div>
                     

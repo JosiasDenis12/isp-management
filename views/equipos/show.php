@@ -395,13 +395,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="tecnico_nombre" class="form-label">Técnico *</label>
-                            <select class="form-select" id="tecnico_nombre" name="tecnico_nombre" required>
-                                <option value="">Seleccionar técnico...</option>
-                                <option value="Juan Pérez">Juan Pérez</option>
-                                <option value="María García">María García</option>
-                                <option value="Carlos Rodríguez">Carlos Rodríguez</option>
-                                <option value="Ana López">Ana López</option>
-                            </select>
+                            <input type="text" class="form-control" id="tecnico_nombre" name="tecnico_nombre" maxlength="255" placeholder="Nombre del técnico que asistirá" required>
                         </div>
                     </div>
                     <div class="mb-3">
