@@ -75,12 +75,16 @@
                                 <option value="">Seleccionar...</option>
                                 <option value="fibra_optica">Fibra Óptica</option>
                                 <option value="inalambrica">Inalámbrica</option>
-                                <option value="cable_coaxial">Cable Coaxial</option>
+                                <option value="cable_coaxial">Cableado (utp)</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="plan_mensual" class="form-label">Plan Mensual ($) *</label>
                             <input type="number" class="form-control" id="plan_mensual" name="plan_mensual" step="0.01" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="megas_contratados" class="form-label">Megas Contratados *</label>
+                            <input type="number" class="form-control" id="megas_contratados" name="megas_contratados" min="1" placeholder="Ej. 100" required>
                         </div>
                     </div>
                     
@@ -128,7 +132,7 @@
                     <strong>Tipos de Conexión</strong><br>
                     • Fibra Óptica: Mayor velocidad<br>
                     • Inalámbrica: Fácil instalación<br>
-                    • Cable Coaxial: Estable y confiable
+                    • Cableado (utp): Estable y confiable
                 </div>
             </div>
         </div>

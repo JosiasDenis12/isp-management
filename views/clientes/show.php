@@ -142,7 +142,7 @@
                                         break;
                                     case 'cable_coaxial':
                                         $tipoIcon = 'ethernet';
-                                        $tipoTexto = 'Cable Coaxial';
+                                        $tipoTexto = 'Cableado (utp)';
                                         break;
                                 }
                                 ?>
@@ -158,6 +158,12 @@
                                     $<?php echo number_format($cliente['plan_mensual'], 2); ?>
                                 </span>
                                 <small class="text-muted">/ mes</small>
+                            </dd>
+
+                            <dt class="col-sm-5">Megas Contratados:</dt>
+                            <dd class="col-sm-7">
+                                <i class="fas fa-tachometer-alt me-1"></i>
+                                <?php echo !empty($cliente['megas_contratados']) ? htmlspecialchars($cliente['megas_contratados']) . ' Mbps' : '<span class="text-muted">No especificado</span>'; ?>
                             </dd>
                         </dl>
                     </div>

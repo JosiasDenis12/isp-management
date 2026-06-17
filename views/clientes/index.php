@@ -229,6 +229,7 @@
                 $tipoConexion = (string)($cliente['tipo_conexion'] ?? '');
                 $tipoConexionLabel = $tipoConexion !== '' ? ucwords(str_replace('_', ' ', $tipoConexion)) : '—';
                 $planMensual = (float)($cliente['plan_mensual'] ?? 0);
+                $megasContratados = (int)($cliente['megas_contratados'] ?? 0);
             ?>
 
             <div
@@ -277,6 +278,10 @@
                             <div class="col-md-6">
                                 <div class="info-label">Tipo de conexión</div>
                                 <div class="info-value"><i class="fas fa-wifi me-2"></i><?php echo htmlspecialchars($tipoConexionLabel); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-label">Megas contratados</div>
+                                <div class="info-value"><i class="fas fa-tachometer-alt me-2"></i><?php echo $megasContratados > 0 ? htmlspecialchars((string)$megasContratados) . ' Mbps' : '-'; ?></div>
                             </div>
                             <div class="col-md-6">
                                 <div class="info-label">Teléfono</div>

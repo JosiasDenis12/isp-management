@@ -15,6 +15,7 @@ class Cliente {
     public $fecha_contratacion;
     public $dia_corte;
     public $plan_mensual;
+    public $megas_contratados;
     public $created_at;
     public $updated_at;
     
@@ -40,8 +41,8 @@ class Cliente {
     
     public function create() {
         $query = "INSERT INTO " . $this->table_name . " 
-                  (nombre, direccion, telefono, email, estado, tipo_conexion, fecha_contratacion, dia_corte, plan_mensual) 
-                  VALUES (:nombre, :direccion, :telefono, :email, :estado, :tipo_conexion, :fecha_contratacion, :dia_corte, :plan_mensual)";
+                  (nombre, direccion, telefono, email, estado, tipo_conexion, fecha_contratacion, dia_corte, plan_mensual, megas_contratados) 
+                  VALUES (:nombre, :direccion, :telefono, :email, :estado, :tipo_conexion, :fecha_contratacion, :dia_corte, :plan_mensual, :megas_contratados)";
         
         $stmt = $this->conn->prepare($query);
         
@@ -54,6 +55,7 @@ class Cliente {
         $stmt->bindParam(':fecha_contratacion', $this->fecha_contratacion);
         $stmt->bindParam(':dia_corte', $this->dia_corte);
         $stmt->bindParam(':plan_mensual', $this->plan_mensual);
+        $stmt->bindParam(':megas_contratados', $this->megas_contratados);
         
         return $stmt->execute();
     }
@@ -62,7 +64,8 @@ class Cliente {
         $query = "UPDATE " . $this->table_name . " 
                   SET nombre = :nombre, direccion = :direccion, telefono = :telefono, 
                       email = :email, estado = :estado, tipo_conexion = :tipo_conexion, 
-                      fecha_contratacion = :fecha_contratacion, dia_corte = :dia_corte, plan_mensual = :plan_mensual 
+                      fecha_contratacion = :fecha_contratacion, dia_corte = :dia_corte, plan_mensual = :plan_mensual,
+                      megas_contratados = :megas_contratados 
                   WHERE id = :id";
         
         $stmt = $this->conn->prepare($query);
@@ -77,6 +80,7 @@ class Cliente {
         $stmt->bindParam(':fecha_contratacion', $this->fecha_contratacion);
         $stmt->bindParam(':dia_corte', $this->dia_corte);
         $stmt->bindParam(':plan_mensual', $this->plan_mensual);
+        $stmt->bindParam(':megas_contratados', $this->megas_contratados);
         
         return $stmt->execute();
     }
@@ -173,6 +177,7 @@ class Cliente {
                     c.telefono,
                     c.tipo_conexion,
                     c.plan_mensual,
+                    c.megas_contratados,
                     c.fecha_contratacion,
                                         c.dia_corte,
                     COALESCE(pag.total_pagado, 0) as total_pagado,

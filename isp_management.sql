@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS `clientes` (
   `fecha_contratacion` date DEFAULT (curdate()),
   `dia_corte` tinyint unsigned NOT NULL DEFAULT '5',
   `plan_mensual` decimal(10,2) DEFAULT NULL,
+  `megas_contratados` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -52,8 +53,8 @@ CREATE TABLE IF NOT EXISTS `clientes` (
 -- Volcado de datos para la tabla `clientes`
 --
 
-INSERT INTO `clientes` (`id`, `nombre`, `direccion`, `telefono`, `email`, `estado`, `tipo_conexion`, `fecha_contratacion`, `plan_mensual`, `created_at`, `updated_at`) VALUES
-(1, 'PRUEBA 5', 'JSOIAS', '68+9609', 'ronaldocabelelstino@gmail.com', 'activo', 'fibra_optica', '2025-11-21', 400.00, '2025-11-22 04:45:19', '2025-11-22 04:45:19');
+INSERT INTO `clientes` (`id`, `nombre`, `direccion`, `telefono`, `email`, `estado`, `tipo_conexion`, `fecha_contratacion`, `plan_mensual`, `megas_contratados`, `created_at`, `updated_at`) VALUES
+(1, 'PRUEBA 5', 'JSOIAS', '68+9609', 'ronaldocabelelstino@gmail.com', 'activo', 'fibra_optica', '2025-11-21', 400.00, 100, '2025-11-22 04:45:19', '2025-11-22 04:45:19');
 
 -- --------------------------------------------------------
 

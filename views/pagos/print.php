@@ -31,7 +31,7 @@ if ($type === 'ticket') {
         <div class="ticket">
             <div class="center bold">NETWORK</div>
             <div class="center small">El Internet del Cielo</div>
-            <div class="center small">Tel: +52 1 56 4456 3551</div>
+            <div class="center small">Tel: </div>
             <div class="divider"></div>
             <div class="center">TICKET / NOTA DE COMPRA</div>
             <div class="divider"></div>
@@ -329,7 +329,7 @@ if ($type === 'ticket') {
                 <div class="company-tagline">El Internet del Cielo</div>
                 <div>
                     📍 Dirección de la Empresa<br>
-                    📞 +52 1 56 4456 3551<br>
+                    
                     ✉️ contacto@ispmanagement.com<br>
                     🌐 www.ispmanagement.com
                 </div>
@@ -360,6 +360,7 @@ if ($type === 'ticket') {
                     <span class="status-badge status-<?php echo $pago['estado']; ?>">
                         <?php echo ucfirst($pago['estado']); ?>
                     </span><br>
+
                     <strong>Método:</strong> <?php echo ucfirst($pago['metodo_pago']); ?><br>
                     <strong>Fecha de Pago:</strong> <?php echo date('d/m/Y', strtotime($pago['fecha_pago'])); ?><br>
                     <strong>Vencimiento:</strong> <?php echo date('d/m/Y', strtotime($pago['fecha_vencimiento'])); ?>

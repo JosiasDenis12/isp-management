@@ -76,13 +76,17 @@
                                 <option value="">Seleccionar...</option>
                                 <option value="fibra_optica" <?php echo $cliente['tipo_conexion'] === 'fibra_optica' ? 'selected' : ''; ?>>Fibra Óptica</option>
                                 <option value="inalambrica" <?php echo $cliente['tipo_conexion'] === 'inalambrica' ? 'selected' : ''; ?>>Inalámbrica</option>
-                                <option value="cable_coaxial" <?php echo $cliente['tipo_conexion'] === 'cable_coaxial' ? 'selected' : ''; ?>>Cable Coaxial</option>
+                                <option value="cable_coaxial" <?php echo $cliente['tipo_conexion'] === 'cable_coaxial' ? 'selected' : ''; ?>>Cableado (utp)</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="plan_mensual" class="form-label">Plan Mensual ($) *</label>
                             <input type="number" class="form-control" id="plan_mensual" name="plan_mensual" 
                                    step="0.01" value="<?php echo $cliente['plan_mensual']; ?>" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="megas_contratados" class="form-label">Megas Contratados *</label>
+                            <input type="number" class="form-control" id="megas_contratados" name="megas_contratados" min="1" value="<?php echo htmlspecialchars($cliente['megas_contratados'] ?? ''); ?>" required>
                         </div>
                     </div>
                     
@@ -143,6 +147,13 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span>Plan Actual:</span>
                     <span class="fw-bold text-success">$<?php echo number_format($cliente['plan_mensual'], 2); ?></span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Megas Actuales:</span>
+                    <span class="fw-bold text-info">
+                        <?php echo !empty($cliente['megas_contratados']) ? htmlspecialchars($cliente['megas_contratados']) . ' Mbps' : 'No especificado'; ?>
+                    </span>
                 </div>
                 
                 <div class="d-flex justify-content-between align-items-center mb-2">

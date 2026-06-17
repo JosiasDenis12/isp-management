@@ -21,7 +21,7 @@ class ClienteController {
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Validar campos obligatorios
-            $required_fields = ['nombre', 'direccion', 'telefono', 'estado', 'tipo_conexion', 'fecha_contratacion', 'dia_corte', 'plan_mensual'];
+            $required_fields = ['nombre', 'direccion', 'telefono', 'estado', 'tipo_conexion', 'fecha_contratacion', 'dia_corte', 'plan_mensual', 'megas_contratados'];
             $missing_fields = [];
             
             foreach ($required_fields as $field) {
@@ -45,9 +45,15 @@ class ClienteController {
                     $clienteModel->fecha_contratacion = $_POST['fecha_contratacion'];
                     $clienteModel->dia_corte = (int)($_POST['dia_corte'] ?? 0);
                     $clienteModel->plan_mensual = $_POST['plan_mensual'];
+                    $clienteModel->megas_contratados = (int)($_POST['megas_contratados'] ?? 0);
 
                     if ($clienteModel->dia_corte < 1 || $clienteModel->dia_corte > 31) {
                         $error = 'El día de corte debe estar entre 1 y 31';
+                        throw new Exception($error);
+                    }
+                    
+                    if ($clienteModel->megas_contratados < 1) {
+                        $error = 'Los megas contratados deben ser mayores a 0';
                         throw new Exception($error);
                     }
                     
@@ -116,7 +122,7 @@ class ClienteController {
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Validar campos obligatorios
-            $required_fields = ['nombre', 'direccion', 'telefono', 'estado', 'tipo_conexion', 'fecha_contratacion', 'dia_corte', 'plan_mensual'];
+            $required_fields = ['nombre', 'direccion', 'telefono', 'estado', 'tipo_conexion', 'fecha_contratacion', 'dia_corte', 'plan_mensual', 'megas_contratados'];
             $missing_fields = [];
             
             foreach ($required_fields as $field) {
@@ -139,9 +145,15 @@ class ClienteController {
                     $clienteModel->fecha_contratacion = $_POST['fecha_contratacion'];
                     $clienteModel->dia_corte = (int)($_POST['dia_corte'] ?? 0);
                     $clienteModel->plan_mensual = $_POST['plan_mensual'];
+                    $clienteModel->megas_contratados = (int)($_POST['megas_contratados'] ?? 0);
 
                     if ($clienteModel->dia_corte < 1 || $clienteModel->dia_corte > 31) {
                         $error = 'El día de corte debe estar entre 1 y 31';
+                        throw new Exception($error);
+                    }
+                    
+                    if ($clienteModel->megas_contratados < 1) {
+                        $error = 'Los megas contratados deben ser mayores a 0';
                         throw new Exception($error);
                     }
                     
@@ -223,6 +235,7 @@ class ClienteController {
             $clienteModel->fecha_contratacion = $cliente['fecha_contratacion'];
             $clienteModel->dia_corte = (int)($cliente['dia_corte'] ?? 5);
             $clienteModel->plan_mensual = $cliente['plan_mensual'];
+            $clienteModel->megas_contratados = $cliente['megas_contratados'] ?? null;
             
             if ($clienteModel->update()) {
                 $mensaje = 'Estado del cliente cambiado a: ' . ucfirst($nuevoEstado);
