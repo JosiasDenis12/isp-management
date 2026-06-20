@@ -71,6 +71,7 @@ $router->addRoute('GET', '/equipos/{id}/reporte', 'EquipoController', 'generarRe
 // Rutas de reportes
 $router->addRoute('GET', '/reportes', 'ReporteController', 'index');
 $router->addRoute('GET', '/reportes/suscripciones', 'ReporteController', 'suscripciones');
+$router->addRoute('GET', '/reportes/equipos-visitas', 'ReporteController', 'equiposVisitas');
 
 // Búsqueda global
 $router->addRoute('GET', '/search', 'SearchController', 'index');

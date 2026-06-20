@@ -56,6 +56,12 @@
             case 'programada':
                 $estadoClass = 'bg-info';
                 break;
+            case 'pendiente':
+                $estadoClass = 'bg-secondary';
+                break;
+            case 'reprogramada':
+                $estadoClass = 'bg-warning text-dark';
+                break;
             case 'cancelada':
                 $estadoClass = 'bg-danger';
                 break;

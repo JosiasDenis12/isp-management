@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS `visitas_tecnicas` (
   `tipo_visita` enum('instalacion','mantenimiento','reparacion','revision') DEFAULT NULL,
   `tecnico_nombre` varchar(255) DEFAULT NULL,
   `observaciones` text,
-  `estado` enum('programada','completada','cancelada') DEFAULT 'programada',
+  `estado` enum('programada','pendiente','completada','cancelada','reprogramada') DEFAULT 'programada',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_visitas_cliente_id` (`cliente_id`),

@@ -134,6 +134,123 @@ class VisitaTecnica {
         return $row ?: null;
     }
 
+    public function getReporteEquiposVisitas($filters = []) {
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['fecha_desde'])) {
+            $where[] = 'DATE(v.fecha_visita) >= :fecha_desde';
+            $params[':fecha_desde'] = $filters['fecha_desde'];
+        }
+
+        if (!empty($filters['fecha_hasta'])) {
+            $where[] = 'DATE(v.fecha_visita) <= :fecha_hasta';
+            $params[':fecha_hasta'] = $filters['fecha_hasta'];
+        }
+
+        if (!empty($filters['cliente'])) {
+            $where[] = '(c.nombre LIKE :cliente OR c.telefono LIKE :cliente)';
+            $params[':cliente'] = '%' . $filters['cliente'] . '%';
+        }
+
+        if (!empty($filters['tecnico'])) {
+            $where[] = 'v.tecnico_nombre LIKE :tecnico';
+            $params[':tecnico'] = '%' . $filters['tecnico'] . '%';
+        }
+
+        if (!empty($filters['equipo'])) {
+            $where[] = '(e.tipo_equipo LIKE :equipo OR e.marca LIKE :equipo OR e.modelo LIKE :equipo OR e.numero_serie LIKE :equipo)';
+            $params[':equipo'] = '%' . $filters['equipo'] . '%';
+        }
+
+        if (!empty($filters['estado_visita'])) {
+            $where[] = 'v.estado = :estado_visita';
+            $params[':estado_visita'] = $filters['estado_visita'];
+        }
+
+        if (!empty($filters['estado_equipo'])) {
+            $where[] = 'e.estado_tecnico = :estado_equipo';
+            $params[':estado_equipo'] = $filters['estado_equipo'];
+        }
+
+        if (!empty($filters['tipo_visita'])) {
+            $where[] = 'v.tipo_visita = :tipo_visita';
+            $params[':tipo_visita'] = $filters['tipo_visita'];
+        }
+
+        $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        $query = "SELECT
+                    v.id AS visita_id,
+                    v.fecha_visita,
+                    v.tipo_visita,
+                    v.tecnico_nombre,
+                    v.observaciones AS actividades_observaciones,
+                    v.estado AS estado_visita,
+                    v.created_at AS visita_registrada,
+                    e.id AS equipo_id,
+                    e.tipo_equipo,
+                    e.marca,
+                    e.modelo,
+                    e.numero_serie,
+                    e.estado_tecnico,
+                    e.fecha_instalacion,
+                    e.observaciones_tecnico,
+                    e.updated_at AS equipo_actualizado,
+                    COALESCE(c.id, e.cliente_id) AS cliente_id,
+                    c.nombre AS cliente_nombre,
+                    c.telefono AS cliente_telefono,
+                    c.direccion AS cliente_direccion
+                  FROM {$this->table_name} v
+                  INNER JOIN equipos e ON e.id = v.equipo_id
+                  LEFT JOIN clientes c ON c.id = COALESCE(v.cliente_id, e.cliente_id)
+                  {$whereSql}
+                  ORDER BY v.fecha_visita DESC, v.created_at DESC";
+
+        $stmt = $this->conn->prepare($query);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getReporteEquiposVisitasStats($filters = []) {
+        $rows = $this->getReporteEquiposVisitas($filters);
+        $stats = [
+            'total_visitas' => count($rows),
+            'equipos_involucrados' => 0,
+            'clientes_involucrados' => 0,
+            'completadas' => 0,
+            'pendientes' => 0,
+            'canceladas' => 0,
+            'reprogramadas' => 0,
+        ];
+
+        $equipos = [];
+        $clientes = [];
+
+        foreach ($rows as $row) {
+            if (!empty($row['equipo_id'])) {
+                $equipos[(int)$row['equipo_id']] = true;
+            }
+            if (!empty($row['cliente_id'])) {
+                $clientes[(int)$row['cliente_id']] = true;
+            }
+
+            $estado = $row['estado_visita'] ?? '';
+            if ($estado === 'completada') $stats['completadas']++;
+            if ($estado === 'programada' || $estado === 'pendiente') $stats['pendientes']++;
+            if ($estado === 'cancelada') $stats['canceladas']++;
+            if ($estado === 'reprogramada') $stats['reprogramadas']++;
+        }
+
+        $stats['equipos_involucrados'] = count($equipos);
+        $stats['clientes_involucrados'] = count($clientes);
+
+        return $stats;
+    }
+
     private function normalizeTipoVisita($tipo) {
         $tipo = trim((string)$tipo);
         if ($tipo === '') {
@@ -166,8 +283,10 @@ class VisitaTecnica {
 
         $map = [
             'programada' => 'programada',
+            'pendiente' => 'pendiente',
             'completada' => 'completada',
             'cancelada' => 'cancelada',
+            'reprogramada' => 'reprogramada',
             'en proceso' => 'programada',
             'enproceso' => 'programada',
         ];
@@ -175,7 +294,7 @@ class VisitaTecnica {
         $key = $this->safeLower($estado);
         $normalized = $map[$key] ?? $key;
 
-        $allowed = ['programada', 'completada', 'cancelada'];
+        $allowed = ['programada', 'pendiente', 'completada', 'cancelada', 'reprogramada'];
         return in_array($normalized, $allowed, true) ? $normalized : null;
     }
 

@@ -81,8 +81,10 @@ if (!empty($visita['fecha_visita'])) {
                     <?php $estadoActual = $visita['estado'] ?? 'programada'; ?>
                     <select class="form-select" id="estado" name="estado" required>
                         <option value="programada" <?php echo ($estadoActual === 'programada') ? 'selected' : ''; ?>>Programada</option>
+                        <option value="pendiente" <?php echo ($estadoActual === 'pendiente') ? 'selected' : ''; ?>>Pendiente</option>
                         <option value="completada" <?php echo ($estadoActual === 'completada') ? 'selected' : ''; ?>>Completada</option>
                         <option value="cancelada" <?php echo ($estadoActual === 'cancelada') ? 'selected' : ''; ?>>Cancelada</option>
+                        <option value="reprogramada" <?php echo ($estadoActual === 'reprogramada') ? 'selected' : ''; ?>>Reprogramada</option>
                     </select>
                 </div>
             </div>

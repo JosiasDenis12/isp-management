@@ -42,9 +42,9 @@
                     <div class="col-md-4 mb-3">
                         <div class="card">
                             <div class="card-body">
-                                <h6>Reporte de Equipos</h6>
-                                <p class="small text-muted">Estado de inventario y visitas técnicas.</p>
-                                <a href="#" class="btn btn-sm btn-primary">Ver</a>
+                                <h6>Reporte de Equipos y Visitas Técnicas</h6>
+                                <p class="small text-muted">Registro de actividades, equipos involucrados, técnicos, clientes y estado de visitas.</p>
+                                <a href="<?php echo url('reportes/equipos-visitas'); ?>" class="btn btn-sm btn-primary">Ver</a>
                             </div>
                         </div>
                     </div>

@@ -117,8 +117,8 @@
         <div class="card text-center">
             <div class="card-body">
                 <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                <h4 class="mb-0"><?php echo count(array_filter($visitas, function($v) { return ($v['estado'] ?? '') === 'programada'; })); ?></h4>
-                <small class="text-muted">Programadas</small>
+                <h4 class="mb-0"><?php echo count(array_filter($visitas, function($v) { return in_array(($v['estado'] ?? ''), ['programada', 'pendiente', 'reprogramada'], true); })); ?></h4>
+                <small class="text-muted">Pendientes</small>
             </div>
         </div>
     </div>
@@ -143,7 +143,7 @@
         <div class="btn-group btn-group-sm">
             <button type="button" class="btn btn-outline-secondary active" onclick="filtrarVisitas('todas', this)">Todas</button>
             <button type="button" class="btn btn-outline-secondary" onclick="filtrarVisitas('completadas', this)">Completadas</button>
-            <button type="button" class="btn btn-outline-secondary" onclick="filtrarVisitas('programadas', this)">Programadas</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="filtrarVisitas('pendientes', this)">Pendientes</button>
             <button type="button" class="btn btn-outline-secondary" onclick="filtrarVisitas('canceladas', this)">Canceladas</button>
         </div>
     </div>
@@ -210,6 +210,12 @@
                                             break;
                                         case 'programada':
                                             $estadoClass = 'bg-info';
+                                            break;
+                                        case 'pendiente':
+                                            $estadoClass = 'bg-secondary';
+                                            break;
+                                        case 'reprogramada':
+                                            $estadoClass = 'bg-warning text-dark';
                                             break;
                                         case 'cancelada':
                                             $estadoClass = 'bg-danger';
@@ -300,8 +306,10 @@
                             <label for="estado_visita" class="form-label">Estado *</label>
                             <select class="form-select" id="estado_visita" name="estado_visita" required>
                                 <option value="programada">Programada</option>
+                                <option value="pendiente">Pendiente</option>
                                 <option value="completada">Completada</option>
                                 <option value="cancelada">Cancelada</option>
+                                <option value="reprogramada">Reprogramada</option>
                             </select>
                         </div>
                     </div>
@@ -372,7 +380,7 @@ function filtrarVisitas(tipo, boton) {
 
         const match = (
             (tipo === 'completadas' && estado === 'completada') ||
-            (tipo === 'programadas' && estado === 'programada') ||
+            (tipo === 'pendientes' && ['programada', 'pendiente', 'reprogramada'].includes(estado)) ||
             (tipo === 'canceladas' && estado === 'cancelada')
         );
 

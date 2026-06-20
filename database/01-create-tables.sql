@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS visitas_tecnicas (
     tipo_visita ENUM('instalacion', 'mantenimiento', 'reparacion', 'revision'),
     tecnico_nombre VARCHAR(255),
     observaciones TEXT,
-    estado ENUM('programada', 'completada', 'cancelada') DEFAULT 'programada',
+    estado ENUM('programada', 'pendiente', 'completada', 'cancelada', 'reprogramada') DEFAULT 'programada',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE,
     FOREIGN KEY (equipo_id) REFERENCES equipos(id) ON DELETE SET NULL

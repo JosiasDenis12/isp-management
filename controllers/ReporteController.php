@@ -38,6 +38,44 @@ class ReporteController {
         $this->loadView('reportes/suscripciones', $data);
     }
 
+    public function equiposVisitas() {
+        require_once 'models/VisitaTecnica.php';
+
+        $filters = [
+            'fecha_desde' => $this->cleanDate($_GET['fecha_desde'] ?? ''),
+            'fecha_hasta' => $this->cleanDate($_GET['fecha_hasta'] ?? ''),
+            'cliente' => trim((string)($_GET['cliente'] ?? '')),
+            'tecnico' => trim((string)($_GET['tecnico'] ?? '')),
+            'equipo' => trim((string)($_GET['equipo'] ?? '')),
+            'estado_visita' => trim((string)($_GET['estado_visita'] ?? '')),
+            'estado_equipo' => trim((string)($_GET['estado_equipo'] ?? '')),
+            'tipo_visita' => trim((string)($_GET['tipo_visita'] ?? '')),
+        ];
+
+        $visitaModel = new VisitaTecnica();
+        $rows = $visitaModel->getReporteEquiposVisitas($filters);
+        $stats = $visitaModel->getReporteEquiposVisitasStats($filters);
+
+        $data = [
+            'title' => 'Reporte de Equipos y Visitas TÃ©cnicas - ' . APP_NAME,
+            'rows' => $rows,
+            'stats' => $stats,
+            'filters' => $filters,
+        ];
+
+        $this->loadView('reportes/equipos-visitas', $data);
+    }
+
+    private function cleanDate($value) {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return '';
+        }
+
+        $dt = DateTimeImmutable::createFromFormat('Y-m-d', $value);
+        return $dt ? $dt->format('Y-m-d') : '';
+    }
+
     private function calcularVencimientoPorCorte($baseDate, $diaCorte) {
         $baseDate = trim((string)$baseDate);
         if ($baseDate === '') {

@@ -218,8 +218,10 @@
                                             $estado = $m['estado'] ?? '';
                                             $estadoClass = 'bg-secondary';
                                             if ($estado === 'programada') $estadoClass = 'bg-info';
+                                            if ($estado === 'pendiente') $estadoClass = 'bg-secondary';
                                             if ($estado === 'completada') $estadoClass = 'bg-success';
                                             if ($estado === 'cancelada') $estadoClass = 'bg-danger';
+                                            if ($estado === 'reprogramada') $estadoClass = 'bg-warning text-dark';
                                             ?>
                                             <span class="badge <?php echo $estadoClass; ?>"><?php echo htmlspecialchars(ucfirst($estado)); ?></span>
                                         </td>
