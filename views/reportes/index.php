@@ -33,6 +33,15 @@
                     <div class="col-md-4 mb-3">
                         <div class="card">
                             <div class="card-body">
+                                <h6>Reporte de Equipos Instalados</h6>
+                                <p class="small text-muted">Antenas y módems con MAC, IP, SSID, credenciales y estado de acceso.</p>
+                                <a href="<?php echo url('reportes/equipos-instalados'); ?>" class="btn btn-sm btn-primary">Ver</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
                                 <h6>Reporte de Pagos</h6>
                                 <p class="small text-muted">Ingresos, pagos pendientes, vencimientos.</p>
                                 <a href="#" class="btn btn-sm btn-primary">Ver</a>

@@ -66,6 +66,40 @@ class ReporteController {
         $this->loadView('reportes/equipos-visitas', $data);
     }
 
+    public function equiposInstalados() {
+        require_once 'models/Equipo.php';
+
+        $filters = [
+            'cliente' => trim((string)($_GET['cliente'] ?? '')),
+            'tipo_equipo' => trim((string)($_GET['tipo_equipo'] ?? '')),
+            'estado_tecnico' => trim((string)($_GET['estado_tecnico'] ?? '')),
+            'mac_address' => trim((string)($_GET['mac_address'] ?? '')),
+            'direccion_ip' => trim((string)($_GET['direccion_ip'] ?? '')),
+            'fecha_desde' => $this->cleanDate($_GET['fecha_desde'] ?? ''),
+            'fecha_hasta' => $this->cleanDate($_GET['fecha_hasta'] ?? ''),
+            'orden_fecha' => (($_GET['orden_fecha'] ?? 'desc') === 'asc') ? 'asc' : 'desc',
+        ];
+
+        $equipoModel = new Equipo();
+        $rows = $equipoModel->getReporteEquiposInstalados($filters);
+
+        $stats = [
+            'total' => count($rows),
+            'antenas' => count(array_filter($rows, function($r) { return ($r['tipo_equipo'] ?? '') === 'antena'; })),
+            'modems' => count(array_filter($rows, function($r) { return ($r['tipo_equipo'] ?? '') === 'modem'; })),
+            'acceso_activo' => count(array_filter($rows, function($r) { return (int)($r['acceso_habilitado'] ?? 0) === 1; })),
+        ];
+
+        $data = [
+            'title' => 'Reporte de Equipos Instalados - ' . APP_NAME,
+            'rows' => $rows,
+            'stats' => $stats,
+            'filters' => $filters,
+        ];
+
+        $this->loadView('reportes/equipos-instalados', $data);
+    }
+
     private function cleanDate($value) {
         $value = trim((string)$value);
         if ($value === '') {

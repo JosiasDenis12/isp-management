@@ -21,21 +21,73 @@ class EquipoController {
     public function create() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $equipoModel = new Equipo();
-            
-            $equipoModel->cliente_id = $_POST['cliente_id'];
-            $equipoModel->tipo_equipo = $_POST['tipo_equipo'];
-            $equipoModel->marca = $_POST['marca'];
-            $equipoModel->modelo = $_POST['modelo'];
-            $equipoModel->numero_serie = $_POST['numero_serie'];
-            $equipoModel->estado_tecnico = $_POST['estado_tecnico'];
-            $equipoModel->fecha_instalacion = $_POST['fecha_instalacion'];
-            $equipoModel->observaciones_tecnico = $_POST['observaciones_tecnico'];
-            
-            if ($equipoModel->create()) {
-                header('Location: ' . url('equipos') . '?success=Equipo registrado exitosamente');
-                exit;
+
+            $modoRegistro = $_POST['modo_registro'] ?? 'individual';
+            $clienteId = $_POST['cliente_id'] ?? null;
+            $fechaInstalacion = $_POST['fecha_instalacion'] ?? null;
+
+            if ($modoRegistro === 'instalacion_completa') {
+                $equipos = [
+                    [
+                        'tipo_equipo' => 'antena',
+                        'marca' => trim((string)($_POST['antena_marca'] ?? '')),
+                        'modelo' => trim((string)($_POST['antena_modelo'] ?? '')),
+                        'numero_serie' => trim((string)($_POST['antena_numero_serie'] ?? '')),
+                        'estado_tecnico' => $_POST['antena_estado_tecnico'] ?? 'operativo',
+                        'observaciones_tecnico' => trim((string)($_POST['antena_observaciones'] ?? '')),
+                        'mac_address' => trim((string)($_POST['antena_mac_address'] ?? '')),
+                        'direccion_ip' => trim((string)($_POST['antena_direccion_ip'] ?? '')),
+                        'password_acceso' => trim((string)($_POST['antena_password_acceso'] ?? '')),
+                    ],
+                    [
+                        'tipo_equipo' => 'modem',
+                        'marca' => trim((string)($_POST['modem_marca'] ?? '')),
+                        'modelo' => trim((string)($_POST['modem_modelo'] ?? '')),
+                        'numero_serie' => trim((string)($_POST['modem_numero_serie'] ?? '')),
+                        'estado_tecnico' => $_POST['modem_estado_tecnico'] ?? 'operativo',
+                        'observaciones_tecnico' => trim((string)($_POST['modem_observaciones'] ?? '')),
+                        'mac_address' => trim((string)($_POST['modem_mac_address'] ?? '')),
+                        'direccion_ip' => trim((string)($_POST['modem_direccion_ip'] ?? '')),
+                        'ssid' => trim((string)($_POST['modem_ssid'] ?? '')),
+                        'password_acceso' => trim((string)($_POST['modem_password_acceso'] ?? '')),
+                        'usuario_acceso' => trim((string)($_POST['modem_usuario_acceso'] ?? '')),
+                        'acceso_habilitado' => isset($_POST['modem_acceso_habilitado']) ? 1 : 0,
+                    ],
+                ];
+
+                if ($this->validarInstalacionCompleta($clienteId, $fechaInstalacion, $equipos, $error)) {
+                    if ($equipoModel->createInstalacionCompleta($clienteId, $fechaInstalacion, trim((string)($_POST['observaciones_tecnico'] ?? '')), $equipos)) {
+                        header('Location: ' . url('equipos') . '?success=Instalación registrada con antena y módem');
+                        exit;
+                    }
+                    $error = 'Error al registrar la instalación completa';
+                }
             } else {
-                $error = 'Error al registrar el equipo';
+                $tipoEquipo = $_POST['tipo_equipo'] ?? '';
+
+                $equipoModel->cliente_id = $clienteId;
+                $equipoModel->instalacion_id = null;
+                $equipoModel->tipo_equipo = $tipoEquipo;
+                $equipoModel->marca = $_POST['marca'];
+                $equipoModel->modelo = $_POST['modelo'];
+                $equipoModel->numero_serie = $_POST['numero_serie'];
+                $equipoModel->estado_tecnico = $_POST['estado_tecnico'];
+                $equipoModel->fecha_instalacion = $fechaInstalacion;
+                $equipoModel->observaciones_tecnico = $_POST['observaciones_tecnico'];
+                $equipoModel->mac_address = in_array($tipoEquipo, ['antena', 'modem'], true) ? trim((string)($_POST['mac_address'] ?? '')) : null;
+                $equipoModel->direccion_ip = in_array($tipoEquipo, ['antena', 'modem'], true) ? trim((string)($_POST['direccion_ip'] ?? '')) : null;
+                $equipoModel->password_acceso = in_array($tipoEquipo, ['antena', 'modem'], true) ? trim((string)($_POST['password_acceso'] ?? '')) : null;
+                $equipoModel->ssid = $tipoEquipo === 'modem' ? trim((string)($_POST['ssid'] ?? '')) : null;
+                $equipoModel->usuario_acceso = $tipoEquipo === 'modem' ? trim((string)($_POST['usuario_acceso'] ?? '')) : null;
+                $equipoModel->acceso_habilitado = ($tipoEquipo === 'modem' && isset($_POST['acceso_habilitado'])) ? 1 : 0;
+
+                if ($this->validarEquipoIndividual($equipoModel, $error)) {
+                    if ($equipoModel->create()) {
+                        header('Location: ' . url('equipos') . '?success=Equipo registrado exitosamente');
+                        exit;
+                    }
+                    $error = 'Error al registrar el equipo';
+                }
             }
         }
         
@@ -49,6 +101,49 @@ class EquipoController {
         ];
         
         $this->loadView('equipos/create', $data);
+    }
+
+    private function validarEquipoIndividual($equipo, &$error) {
+        if (empty($equipo->cliente_id) || empty($equipo->tipo_equipo) || empty($equipo->marca) || empty($equipo->modelo) || empty($equipo->estado_tecnico)) {
+            $error = 'Cliente, tipo de equipo, marca, modelo y estado son obligatorios';
+            return false;
+        }
+
+        if (in_array($equipo->tipo_equipo, ['antena', 'modem'], true)) {
+            if (empty($equipo->mac_address) || empty($equipo->direccion_ip) || empty($equipo->password_acceso)) {
+                $error = 'MAC Address, Dirección IP y Contraseña son obligatorios para antenas y módems';
+                return false;
+            }
+        }
+
+        if ($equipo->tipo_equipo === 'modem' && (empty($equipo->ssid) || empty($equipo->usuario_acceso))) {
+            $error = 'SSID y Usuario de acceso son obligatorios para módems';
+            return false;
+        }
+
+        return true;
+    }
+
+    private function validarInstalacionCompleta($clienteId, $fechaInstalacion, $equipos, &$error) {
+        if (empty($clienteId) || empty($fechaInstalacion)) {
+            $error = 'Cliente y fecha de instalación son obligatorios para una instalación completa';
+            return false;
+        }
+
+        foreach ($equipos as $equipo) {
+            $tipo = $equipo['tipo_equipo'] ?? '';
+            if (empty($equipo['marca']) || empty($equipo['modelo']) || empty($equipo['mac_address']) || empty($equipo['direccion_ip']) || empty($equipo['password_acceso'])) {
+                $error = 'Marca, modelo, MAC Address, Dirección IP y Contraseña son obligatorios para antena y módem';
+                return false;
+            }
+
+            if ($tipo === 'modem' && (empty($equipo['ssid']) || empty($equipo['usuario_acceso']))) {
+                $error = 'SSID y Usuario de acceso son obligatorios para el módem';
+                return false;
+            }
+        }
+
+        return true;
     }
     
     public function show($id) {
@@ -359,6 +454,13 @@ class EquipoController {
             $equipoModel->estado_tecnico = $nuevoEstado;
             $equipoModel->fecha_instalacion = $equipo['fecha_instalacion'];
             $equipoModel->observaciones_tecnico = $_POST['observaciones'] ?? $equipo['observaciones_tecnico'];
+            $equipoModel->instalacion_id = $equipo['instalacion_id'] ?? null;
+            $equipoModel->mac_address = $equipo['mac_address'] ?? null;
+            $equipoModel->direccion_ip = $equipo['direccion_ip'] ?? null;
+            $equipoModel->password_acceso = $equipo['password_acceso'] ?? null;
+            $equipoModel->ssid = $equipo['ssid'] ?? null;
+            $equipoModel->usuario_acceso = $equipo['usuario_acceso'] ?? null;
+            $equipoModel->acceso_habilitado = (int)($equipo['acceso_habilitado'] ?? 0);
             
             if ($equipoModel->update()) {
                 $estadoTexto = ucfirst(str_replace('_', ' ', $nuevoEstado));

@@ -66,6 +66,7 @@ DROP TABLE IF EXISTS `equipos`;
 CREATE TABLE IF NOT EXISTS `equipos` (
   `id` int NOT NULL AUTO_INCREMENT,
   `cliente_id` int DEFAULT NULL,
+  `instalacion_id` int DEFAULT NULL,
   `tipo_equipo` varchar(100) NOT NULL,
   `marca` varchar(100) DEFAULT NULL,
   `modelo` varchar(100) DEFAULT NULL,
@@ -73,11 +74,28 @@ CREATE TABLE IF NOT EXISTS `equipos` (
   `estado_tecnico` enum('operativo','necesita_revision','dañado','fuera_de_servicio','en_mantenimiento') DEFAULT 'operativo',
   `fecha_instalacion` date DEFAULT NULL,
   `observaciones_tecnico` text,
+  `mac_address` varchar(50) DEFAULT NULL,
+  `direccion_ip` varchar(45) DEFAULT NULL,
+  `password_acceso` varchar(255) DEFAULT NULL,
+  `ssid` varchar(255) DEFAULT NULL,
+  `usuario_acceso` varchar(100) DEFAULT NULL,
+  `acceso_habilitado` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_equipos_cliente_id` (`cliente_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `instalaciones`;
+CREATE TABLE IF NOT EXISTS `instalaciones` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `cliente_id` int NOT NULL,
+  `fecha_instalacion` date NOT NULL,
+  `observaciones` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_instalaciones_cliente_id` (`cliente_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Volcado de datos para la tabla `equipos`

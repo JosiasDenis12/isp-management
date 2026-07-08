@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS pagos (
 CREATE TABLE IF NOT EXISTS equipos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     cliente_id INT,
+    instalacion_id INT NULL,
     tipo_equipo VARCHAR(100) NOT NULL,
     marca VARCHAR(100),
     modelo VARCHAR(100),
@@ -44,8 +45,23 @@ CREATE TABLE IF NOT EXISTS equipos (
     estado_tecnico ENUM('operativo', 'necesita_revision', 'dañado', 'fuera_de_servicio', 'en_mantenimiento') DEFAULT 'operativo',
     fecha_instalacion DATE,
     observaciones_tecnico TEXT,
+    mac_address VARCHAR(50),
+    direccion_ip VARCHAR(45),
+    password_acceso VARCHAR(255),
+    ssid VARCHAR(255),
+    usuario_acceso VARCHAR(100),
+    acceso_habilitado TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS instalaciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cliente_id INT NOT NULL,
+    fecha_instalacion DATE NOT NULL,
+    observaciones TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -70,3 +86,7 @@ CREATE INDEX idx_pagos_cliente_id ON pagos(cliente_id);
 CREATE INDEX idx_pagos_fecha_vencimiento ON pagos(fecha_vencimiento);
 CREATE INDEX idx_pagos_estado ON pagos(estado);
 CREATE INDEX idx_equipos_cliente_id ON equipos(cliente_id);
+CREATE INDEX idx_equipos_instalacion_id ON equipos(instalacion_id);
+CREATE INDEX idx_equipos_mac_address ON equipos(mac_address);
+CREATE INDEX idx_equipos_direccion_ip ON equipos(direccion_ip);
+CREATE INDEX idx_instalaciones_cliente_id ON instalaciones(cliente_id);

@@ -148,6 +148,53 @@
                     <p class="mt-2 mb-0"><?php echo nl2br(htmlspecialchars($equipo['observaciones_tecnico'])); ?></p>
                 </div>
                 <?php endif; ?>
+
+                <?php if (in_array(($equipo['tipo_equipo'] ?? ''), ['antena', 'modem'], true)): ?>
+                <hr>
+                <div>
+                    <strong>Datos de red y acceso:</strong>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td><strong>MAC Address:</strong></td>
+                                    <td><?php echo !empty($equipo['mac_address']) ? htmlspecialchars($equipo['mac_address']) : '<span class="text-muted">No especificado</span>'; ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Dirección IP:</strong></td>
+                                    <td><?php echo !empty($equipo['direccion_ip']) ? htmlspecialchars($equipo['direccion_ip']) : '<span class="text-muted">No especificada</span>'; ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Contraseña:</strong></td>
+                                    <td><?php echo !empty($equipo['password_acceso']) ? htmlspecialchars($equipo['password_acceso']) : '<span class="text-muted">No especificada</span>'; ?></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <?php if (($equipo['tipo_equipo'] ?? '') === 'modem'): ?>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td><strong>SSID:</strong></td>
+                                    <td><?php echo !empty($equipo['ssid']) ? htmlspecialchars($equipo['ssid']) : '<span class="text-muted">No especificado</span>'; ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Usuario:</strong></td>
+                                    <td><?php echo !empty($equipo['usuario_acceso']) ? htmlspecialchars($equipo['usuario_acceso']) : '<span class="text-muted">No especificado</span>'; ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Acceso:</strong></td>
+                                    <td>
+                                        <span class="badge <?php echo !empty($equipo['acceso_habilitado']) ? 'bg-success' : 'bg-secondary'; ?>">
+                                            <?php echo !empty($equipo['acceso_habilitado']) ? 'Activado' : 'Desactivado'; ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
 
