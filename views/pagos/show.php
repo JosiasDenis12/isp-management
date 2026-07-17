@@ -16,14 +16,10 @@
                 Imprimir
             </a>
         </div>
-        <div class="btn-group">
-            <button type="button" class="btn btn-outline-success" onclick="marcarComoPagado(<?php echo $pago['id']; ?>)">
-                <i class="fas fa-check me-1"></i>
-                Marcar como Pagado
-            </button>
-        </div>
     </div>
 </div>
+
+<div id="paymentActionAlert" class="alert d-none" role="alert"></div>
 
 <?php if (isset($_GET['success'])): ?>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -212,7 +208,7 @@
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <?php if ($pago['estado'] !== 'pagado'): ?>
-                        <button type="button" class="btn btn-success" onclick="marcarComoPagado(<?php echo $pago['id']; ?>)">
+                        <button type="button" id="btn-marcar-pagado" class="btn btn-success" onclick="marcarComoPagado(<?php echo $pago['id']; ?>)">
                             <i class="fas fa-check me-1"></i>
                             Marcar como Pagado
                         </button>
@@ -223,7 +219,7 @@
                         Imprimir Factura
                     </a>
                     
-                    <button type="button" class="btn btn-outline-info" onclick="enviarRecordatorio(<?php echo $pago['id']; ?>)">
+                    <button type="button" id="btn-recordatorio" class="btn btn-outline-info" onclick="enviarRecordatorio(<?php echo $pago['id']; ?>)">
                         <i class="fas fa-envelope me-1"></i>
                         Enviar Recordatorio
                     </button>
@@ -312,51 +308,131 @@
 
 <!-- Scripts -->
 <script>
-function marcarComoPagado(pagoId) {
-    if (confirm('¿Estás seguro de que quieres marcar este pago como pagado?')) {
-        // Aquí iría la llamada AJAX al servidor
-        fetch(`/pagos/${pagoId}/marcar-pagado`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error al actualizar el estado del pago');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar la solicitud');
-        });
+const pagoMarcarPagadoUrl = <?php echo json_encode(url('pagos/' . $pago['id'] . '/marcar-pagado')); ?>;
+const pagoRecordatorioUrl = <?php echo json_encode(url('pagos/' . $pago['id'] . '/recordatorio')); ?>;
+
+function mostrarAccionPago(tipo, mensaje) {
+    const alertBox = document.getElementById('paymentActionAlert');
+    if (!alertBox) return;
+
+    alertBox.className = 'alert alert-' + tipo;
+    alertBox.textContent = mensaje;
+    alertBox.classList.remove('d-none');
+
+    window.clearTimeout(alertBox._hideTimer);
+    alertBox._hideTimer = window.setTimeout(() => {
+        alertBox.classList.add('d-none');
+    }, 5000);
+}
+
+function setLoading(button, loadingText) {
+    if (!button) return;
+    if (!button.dataset.originalHtml) {
+        button.dataset.originalHtml = button.innerHTML;
+    }
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + loadingText;
+}
+
+function clearLoading(button) {
+    if (!button) return;
+    button.disabled = false;
+    if (button.dataset.originalHtml) {
+        button.innerHTML = button.dataset.originalHtml;
     }
 }
 
-function enviarRecordatorio(pagoId) {
-    if (confirm('¿Enviar recordatorio de pago al cliente?')) {
-        // Aquí iría la llamada AJAX para enviar el recordatorio
-        fetch(`/pagos/${pagoId}/recordatorio`, {
+async function marcarComoPagado(pagoId) {
+    const boton = document.getElementById('btn-marcar-pagado');
+    if (!confirm('¿Estás seguro de que quieres marcar este pago como pagado?')) {
+        return;
+    }
+
+    setLoading(boton, 'Procesando...');
+
+    try {
+        const response = await fetch(pagoMarcarPagadoUrl, {
             method: 'POST',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Recordatorio enviado exitosamente');
-            } else {
-                alert('Error al enviar el recordatorio');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar la solicitud');
+            },
+            credentials: 'same-origin'
         });
+
+        const rawText = await response.text();
+        let data = null;
+        try {
+            data = rawText ? JSON.parse(rawText) : null;
+        } catch (parseError) {
+            console.error('Respuesta inválida al marcar como pagado:', rawText);
+            throw new Error('El servidor devolvió una respuesta inválida');
+        }
+
+        if (!response.ok || !data || !data.success) {
+            throw new Error((data && data.message) ? data.message : 'No se pudo actualizar el pago');
+        }
+
+        mostrarAccionPago('success', data.message || 'Pago marcado como pagado');
+
+        const badge = document.querySelector('.card-header .badge.fs-6');
+        if (badge) {
+            badge.className = 'badge bg-success fs-6';
+            badge.innerHTML = '<i class="fas fa-check me-1"></i>Pagado';
+        }
+
+        if (boton && boton.parentElement) {
+            boton.remove();
+        }
+    } catch (error) {
+        console.error('Error al marcar pago como pagado:', error);
+        mostrarAccionPago('danger', error.message || 'Error al procesar la solicitud');
+    } finally {
+        clearLoading(boton);
+    }
+}
+
+async function enviarRecordatorio(pagoId) {
+    const boton = document.getElementById('btn-recordatorio');
+    if (!confirm('¿Enviar recordatorio de pago al cliente?')) {
+        return;
+    }
+
+    setLoading(boton, 'Enviando...');
+
+    try {
+        const response = await fetch(pagoRecordatorioUrl, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        });
+
+        const rawText = await response.text();
+        let data = null;
+        try {
+            data = rawText ? JSON.parse(rawText) : null;
+        } catch (parseError) {
+            console.error('Respuesta inválida al preparar recordatorio:', rawText);
+            throw new Error('El servidor devolvió una respuesta inválida');
+        }
+
+        if (!response.ok || !data || !data.success) {
+            throw new Error((data && data.message) ? data.message : 'No se pudo enviar el recordatorio');
+        }
+
+        mostrarAccionPago('success', data.message || 'Recordatorio preparado correctamente');
+
+        if (data.data && data.data.whatsapp_url) {
+            window.open(data.data.whatsapp_url, '_blank', 'noopener');
+        }
+    } catch (error) {
+        console.error('Error al enviar recordatorio:', error);
+        mostrarAccionPago('danger', error.message || 'Error al procesar la solicitud');
+    } finally {
+        clearLoading(boton);
     }
 }
 </script>

@@ -405,6 +405,9 @@
                                 <a href="<?php echo url('equipos/' . $equipoId . '/visitas'); ?>" class="btn btn-outline-info btn-sm">
                                     <i class="fas fa-screwdriver-wrench me-1"></i>Visitas
                                 </a>
+                                <a href="<?php echo url('equipos/' . $equipoId . '/edit'); ?>" class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-pen me-1"></i>Editar
+                                </a>
                             </div>
                         </div>
                     </div>

@@ -55,6 +55,8 @@ $router->addRoute('POST', '/pagos/{id}/recordatorio', 'PagoController', 'enviarR
 $router->addRoute('GET', '/equipos', 'EquipoController', 'index');
 $router->addRoute('GET', '/equipos/create', 'EquipoController', 'create');
 $router->addRoute('POST', '/equipos/create', 'EquipoController', 'create');
+$router->addRoute('GET', '/equipos/{id}/edit', 'EquipoController', 'edit');
+$router->addRoute('POST', '/equipos/{id}/edit', 'EquipoController', 'edit');
 $router->addRoute('GET', '/equipos/{id}', 'EquipoController', 'show');
 $router->addRoute('POST', '/equipos/{id}/programar-mantenimiento', 'EquipoController', 'programarMantenimiento');
 $router->addRoute('GET', '/equipos/{id}/visitas', 'EquipoController', 'visitas');

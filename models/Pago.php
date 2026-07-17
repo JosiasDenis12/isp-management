@@ -22,7 +22,7 @@ class Pago {
     }
     
     public function getAll() {
-        $query = "SELECT p.*, c.nombre as cliente_nombre 
+        $query = "SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono, c.estado as cliente_estado 
                   FROM " . $this->table_name . " p
                   JOIN clientes c ON p.cliente_id = c.id
                   ORDER BY p.fecha_vencimiento DESC";
@@ -33,7 +33,7 @@ class Pago {
     }
     
     public function getById($id) {
-        $query = "SELECT p.*, c.nombre as cliente_nombre 
+        $query = "SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono, c.estado as cliente_estado 
                   FROM " . $this->table_name . " p
                   JOIN clientes c ON p.cliente_id = c.id
                   WHERE p.id = :id";
@@ -42,6 +42,112 @@ class Pago {
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function marcarComoPagado($id) {
+        $id = (int)$id;
+        if ($id <= 0) {
+            throw new InvalidArgumentException('ID de pago inválido');
+        }
+
+        try {
+            $this->conn->beginTransaction();
+
+            $query = "SELECT p.*, c.id as cliente_existe, c.estado as cliente_estado
+                      FROM " . $this->table_name . " p
+                      JOIN clientes c ON p.cliente_id = c.id
+                      WHERE p.id = :id
+                      FOR UPDATE";
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            $pago = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$pago) {
+                throw new RuntimeException('El pago no existe o no tiene un cliente asociado');
+            }
+
+            if (($pago['estado'] ?? '') === 'pagado') {
+                throw new RuntimeException('Este pago ya estaba marcado como pagado');
+            }
+
+            $updatePago = "UPDATE " . $this->table_name . "
+                           SET estado = 'pagado', fecha_pago = CURRENT_DATE()
+                           WHERE id = :id AND estado <> 'pagado'";
+            $stmtUpdate = $this->conn->prepare($updatePago);
+            $stmtUpdate->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmtUpdate->execute();
+
+            if ($stmtUpdate->rowCount() !== 1) {
+                throw new RuntimeException('No se pudo actualizar el pago. Verifica que no haya sido modificado por otra acción.');
+            }
+
+            $clienteId = (int)$pago['cliente_id'];
+            $pendientesQuery = "SELECT COUNT(*) as total
+                                FROM " . $this->table_name . "
+                                WHERE cliente_id = :cliente_id
+                                  AND estado IN ('pendiente', 'vencido')
+                                  AND fecha_vencimiento < CURRENT_DATE()";
+            $stmtPendientes = $this->conn->prepare($pendientesQuery);
+            $stmtPendientes->bindValue(':cliente_id', $clienteId, PDO::PARAM_INT);
+            $stmtPendientes->execute();
+            $pendientesVencidos = (int)($stmtPendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+
+            $clienteActivado = false;
+            if ($pendientesVencidos === 0 && ($pago['cliente_estado'] ?? '') === 'suspendido') {
+                $stmtCliente = $this->conn->prepare("UPDATE clientes SET estado = 'activo' WHERE id = :cliente_id");
+                $stmtCliente->bindValue(':cliente_id', $clienteId, PDO::PARAM_INT);
+                $stmtCliente->execute();
+                $clienteActivado = $stmtCliente->rowCount() > 0;
+            }
+
+            $this->conn->commit();
+
+            return [
+                'pago_id' => $id,
+                'cliente_id' => $clienteId,
+                'fecha_pago' => date('Y-m-d'),
+                'cliente_activado' => $clienteActivado,
+                'pendientes_vencidos' => $pendientesVencidos
+            ];
+        } catch (Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public function prepararRecordatorio($id) {
+        $pago = $this->getById((int)$id);
+        if (!$pago) {
+            throw new RuntimeException('Pago no encontrado');
+        }
+
+        if (($pago['estado'] ?? '') === 'pagado') {
+            throw new RuntimeException('El pago ya está marcado como pagado; no requiere recordatorio');
+        }
+
+        $telefono = preg_replace('/\D+/', '', (string)($pago['cliente_telefono'] ?? ''));
+        if ($telefono === '') {
+            throw new RuntimeException('El cliente no tiene número telefónico registrado');
+        }
+
+        if (strlen($telefono) === 10) {
+            $telefono = '52' . $telefono;
+        }
+
+        $monto = number_format((float)($pago['monto'] ?? 0), 2);
+        $vencimiento = !empty($pago['fecha_vencimiento']) ? date('d/m/Y', strtotime($pago['fecha_vencimiento'])) : 'sin fecha registrada';
+        $factura = $pago['numero_factura'] ?? 'N/A';
+        $cliente = $pago['cliente_nombre'] ?? 'cliente';
+        $mensaje = "Hola {$cliente}, te recordamos que tienes un pago pendiente de \${$monto} correspondiente a la factura {$factura}, con vencimiento {$vencimiento}. Gracias.";
+
+        return [
+            'telefono' => $telefono,
+            'mensaje' => $mensaje,
+            'whatsapp_url' => 'https://wa.me/' . $telefono . '?text=' . rawurlencode($mensaje)
+        ];
     }
     
     public function create() {

@@ -87,44 +87,95 @@ class PagoController {
     }
     
     public function marcarPagado($id) {
-        header('Content-Type: application/json');
-        
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            return;
+        }
+
+        $pagoId = (int)$id;
+        if ($pagoId <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'ID de pago inválido']);
+            return;
+        }
+
         try {
             $pagoModel = new Pago();
-            $pago = $pagoModel->getById($id);
-            
-            if (!$pago) {
-                echo json_encode(['success' => false, 'message' => 'Pago no encontrado']);
-                return;
+            $resultado = $pagoModel->marcarComoPagado($pagoId);
+
+            $mensaje = 'Pago marcado como pagado';
+            if (!empty($resultado['cliente_activado'])) {
+                $mensaje .= ' y cliente reactivado';
             }
-            
-            // Aquí actualizarías el estado del pago a 'pagado'
-            // Por ahora, solo simularemos la respuesta
-            echo json_encode(['success' => true, 'message' => 'Pago marcado como pagado']);
-            
-        } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+
+            echo json_encode([
+                'success' => true,
+                'message' => $mensaje,
+                'data' => $resultado,
+            ]);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            error_log('PagoController@marcarPagado validation error: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        } catch (RuntimeException $e) {
+            http_response_code(409);
+            error_log('PagoController@marcarPagado business error (pago ' . $pagoId . '): ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            error_log('PagoController@marcarPagado database error (pago ' . $pagoId . '): ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Error de base de datos al actualizar el pago']);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            error_log('PagoController@marcarPagado unexpected error (pago ' . $pagoId . '): ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Error inesperado al procesar la solicitud']);
         }
     }
     
     public function enviarRecordatorio($id) {
-        header('Content-Type: application/json');
-        
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            return;
+        }
+
+        $pagoId = (int)$id;
+        if ($pagoId <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'ID de pago inválido']);
+            return;
+        }
+
         try {
             $pagoModel = new Pago();
-            $pago = $pagoModel->getById($id);
-            
-            if (!$pago) {
-                echo json_encode(['success' => false, 'message' => 'Pago no encontrado']);
-                return;
-            }
-            
-            // Aquí implementarías la lógica para enviar el recordatorio
-            // Por ahora, solo simularemos la respuesta
-            echo json_encode(['success' => true, 'message' => 'Recordatorio enviado']);
-            
-        } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            $recordatorio = $pagoModel->prepararRecordatorio($pagoId);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Recordatorio preparado correctamente',
+                'data' => $recordatorio,
+            ]);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            error_log('PagoController@enviarRecordatorio validation error: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        } catch (RuntimeException $e) {
+            http_response_code(409);
+            error_log('PagoController@enviarRecordatorio business error (pago ' . $pagoId . '): ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            error_log('PagoController@enviarRecordatorio database error (pago ' . $pagoId . '): ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Error de base de datos al preparar el recordatorio']);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            error_log('PagoController@enviarRecordatorio unexpected error (pago ' . $pagoId . '): ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Error inesperado al procesar la solicitud']);
         }
     }
     

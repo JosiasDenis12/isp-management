@@ -103,6 +103,111 @@ class EquipoController {
         $this->loadView('equipos/create', $data);
     }
 
+    public function edit($id) {
+        $equipoModel = new Equipo();
+        $equipo = $equipoModel->getById($id);
+
+        if (!$equipo) {
+            header('Location: ' . url('equipos') . '?error=Equipo no encontrado');
+            exit;
+        }
+
+        $equipo['tipo_equipo'] = $this->normalizarTipoEquipo($equipo['tipo_equipo'] ?? '');
+
+        $clienteModel = new Cliente();
+        $clientes = $clienteModel->getAll();
+        $error = null;
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->hidratarEquipoDesdePost($equipoModel, $_POST, $equipo);
+
+            if ($this->validarEquipoIndividual($equipoModel, $error)) {
+                if ($equipoModel->update()) {
+                    header('Location: ' . url('equipos/' . $id) . '?success=' . urlencode('Equipo actualizado exitosamente'));
+                    exit;
+                }
+
+                $error = 'Error al actualizar el equipo';
+            }
+
+            $equipo = array_merge($equipo, [
+                'cliente_id' => $equipoModel->cliente_id,
+                'tipo_equipo' => $equipoModel->tipo_equipo,
+                'marca' => $equipoModel->marca,
+                'modelo' => $equipoModel->modelo,
+                'numero_serie' => $equipoModel->numero_serie,
+                'estado_tecnico' => $equipoModel->estado_tecnico,
+                'fecha_instalacion' => $equipoModel->fecha_instalacion,
+                'observaciones_tecnico' => $equipoModel->observaciones_tecnico,
+                'instalacion_id' => $equipoModel->instalacion_id,
+                'mac_address' => $equipoModel->mac_address,
+                'direccion_ip' => $equipoModel->direccion_ip,
+                'password_acceso' => $equipoModel->password_acceso,
+                'ssid' => $equipoModel->ssid,
+                'usuario_acceso' => $equipoModel->usuario_acceso,
+                'acceso_habilitado' => $equipoModel->acceso_habilitado,
+            ]);
+        }
+
+        $data = [
+            'title' => 'Editar Equipo - ' . APP_NAME,
+            'equipo' => $equipo,
+            'clientes' => $clientes,
+            'error' => $error,
+        ];
+
+        $this->loadView('equipos/edit', $data);
+    }
+
+    private function hidratarEquipoDesdePost($equipoModel, $post, $equipoActual = []) {
+        $tipoEquipo = $this->normalizarTipoEquipo($post['tipo_equipo'] ?? '');
+        $esEquipoRed = in_array($tipoEquipo, ['antena', 'modem'], true);
+        $esModem = $tipoEquipo === 'modem';
+
+        $equipoModel->id = $equipoActual['id'] ?? null;
+        $equipoModel->cliente_id = $post['cliente_id'] ?? null;
+        $equipoModel->instalacion_id = $equipoActual['instalacion_id'] ?? null;
+        $equipoModel->tipo_equipo = $tipoEquipo;
+        $equipoModel->marca = trim((string)($post['marca'] ?? ''));
+        $equipoModel->modelo = trim((string)($post['modelo'] ?? ''));
+        $equipoModel->numero_serie = trim((string)($post['numero_serie'] ?? ''));
+        $equipoModel->estado_tecnico = $post['estado_tecnico'] ?? '';
+        $equipoModel->fecha_instalacion = $post['fecha_instalacion'] ?? null;
+        $equipoModel->observaciones_tecnico = trim((string)($post['observaciones_tecnico'] ?? ''));
+        $equipoModel->mac_address = $esEquipoRed ? trim((string)($post['mac_address'] ?? '')) : null;
+        $equipoModel->direccion_ip = $esEquipoRed ? trim((string)($post['direccion_ip'] ?? '')) : null;
+        $equipoModel->password_acceso = $esEquipoRed ? trim((string)($post['password_acceso'] ?? '')) : null;
+        $equipoModel->ssid = $esModem ? trim((string)($post['ssid'] ?? '')) : null;
+        $equipoModel->usuario_acceso = $esModem ? trim((string)($post['usuario_acceso'] ?? '')) : null;
+        $equipoModel->acceso_habilitado = ($esModem && isset($post['acceso_habilitado'])) ? 1 : 0;
+    }
+
+    private function normalizarTipoEquipo($tipo) {
+        $tipo = trim((string)$tipo);
+        $lower = function_exists('mb_strtolower') ? mb_strtolower($tipo, 'UTF-8') : strtolower($tipo);
+        $compact = preg_replace('/[^a-z0-9_]+/', '', $lower);
+
+        if ($compact === '') return '';
+        if (strpos($compact, 'antena') !== false) return 'antena';
+        if (strpos($compact, 'modem') !== false || strpos($compact, 'mdem') !== false || strpos($compact, 'dem') !== false) return 'modem';
+        if (strpos($compact, 'router') !== false) return 'router';
+        if (strpos($compact, 'switch') !== false) return 'switch';
+        if (strpos($compact, 'access') !== false || strpos($compact, 'ap') === 0) return 'access_point';
+
+        $allowedCompact = ['router', 'modem', 'switch', 'access_point', 'antena', 'otro'];
+        if (in_array($compact, $allowedCompact, true)) return $compact;
+
+        if ($lower === '') return '';
+        if (strpos($lower, 'antena') !== false) return 'antena';
+        if (strpos($lower, 'modem') !== false || strpos($lower, 'módem') !== false || strpos($lower, 'm¢dem') !== false || strpos($lower, 'dem') !== false) return 'modem';
+        if (strpos($lower, 'router') !== false) return 'router';
+        if (strpos($lower, 'switch') !== false) return 'switch';
+        if (strpos($lower, 'access') !== false || strpos($lower, 'ap') === 0) return 'access_point';
+
+        $allowed = ['router', 'modem', 'switch', 'access_point', 'antena', 'otro'];
+        return in_array($lower, $allowed, true) ? $lower : 'otro';
+    }
+
     private function validarEquipoIndividual($equipo, &$error) {
         if (empty($equipo->cliente_id) || empty($equipo->tipo_equipo) || empty($equipo->marca) || empty($equipo->modelo) || empty($equipo->estado_tecnico)) {
             $error = 'Cliente, tipo de equipo, marca, modelo y estado son obligatorios';
