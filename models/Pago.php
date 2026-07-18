@@ -54,6 +54,7 @@ class Pago {
             $this->conn->beginTransaction();
 
             $query = "SELECT p.*, c.id as cliente_existe, c.estado as cliente_estado
+                      , c.dia_corte as cliente_dia_corte
                       FROM " . $this->table_name . " p
                       JOIN clientes c ON p.cliente_id = c.id
                       WHERE p.id = :id
@@ -71,11 +72,14 @@ class Pago {
                 throw new RuntimeException('Este pago ya estaba marcado como pagado');
             }
 
+            $nuevaFechaVencimiento = $this->calcularSiguienteVencimiento((int)($pago['cliente_dia_corte'] ?? 5));
+
             $updatePago = "UPDATE " . $this->table_name . "
-                           SET estado = 'pagado', fecha_pago = CURRENT_DATE()
+                           SET estado = 'pagado', fecha_pago = CURRENT_DATE(), fecha_vencimiento = :fecha_vencimiento
                            WHERE id = :id AND estado <> 'pagado'";
             $stmtUpdate = $this->conn->prepare($updatePago);
             $stmtUpdate->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmtUpdate->bindValue(':fecha_vencimiento', $nuevaFechaVencimiento);
             $stmtUpdate->execute();
 
             if ($stmtUpdate->rowCount() !== 1) {
@@ -107,6 +111,7 @@ class Pago {
                 'pago_id' => $id,
                 'cliente_id' => $clienteId,
                 'fecha_pago' => date('Y-m-d'),
+                'fecha_vencimiento' => $nuevaFechaVencimiento,
                 'cliente_activado' => $clienteActivado,
                 'pendientes_vencidos' => $pendientesVencidos
             ];
@@ -241,6 +246,19 @@ class Pago {
         $stmt->bindParam(':cliente_id', $cliente_id);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    private function calcularSiguienteVencimiento($diaCorte) {
+        $diaCorte = max(1, min(31, (int)$diaCorte));
+
+        $base = new DateTimeImmutable('today');
+        $nextMonth = $base->modify('first day of next month');
+        $year = (int)$nextMonth->format('Y');
+        $month = (int)$nextMonth->format('m');
+        $lastDay = (int)$nextMonth->format('t');
+        $day = min($diaCorte, $lastDay);
+
+        return $nextMonth->setDate($year, $month, $day)->format('Y-m-d');
     }
 }
 ?>

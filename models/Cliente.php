@@ -179,20 +179,32 @@ class Cliente {
                     c.plan_mensual,
                     c.megas_contratados,
                     c.fecha_contratacion,
-                                        c.dia_corte,
-                    COALESCE(pag.total_pagado, 0) as total_pagado,
-                    COALESCE(pag.meses_pagados, 0) as meses_pagados,
-                                        pag.ultima_fecha_venc_pagada
+                    c.dia_corte,
+                                        COALESCE(res.total_pagos, 0) as total_pagos,
+                                        COALESCE(res.total_pagado, 0) as total_pagado,
+                                        COALESCE(res.meses_pagados, 0) as meses_pagados,
+                                        ult.fecha_pago as ultima_fecha_pago,
+                                        ult.fecha_vencimiento as ultima_fecha_vencimiento,
+                                        ult.estado as ultimo_estado_pago
                   FROM " . $this->table_name . " c
                   LEFT JOIN (
                     SELECT
-                        cliente_id,
+                                                cliente_id,
+                        COUNT(*) as total_pagos,
                         SUM(CASE WHEN estado = 'pagado' THEN monto ELSE 0 END) as total_pagado,
-                        COUNT(CASE WHEN estado = 'pagado' THEN 1 END) as meses_pagados,
-                        MAX(CASE WHEN estado = 'pagado' THEN fecha_vencimiento END) as ultima_fecha_venc_pagada
-                    FROM pagos
+                                                COUNT(CASE WHEN estado = 'pagado' THEN 1 END) as meses_pagados
+                                        FROM pagos
                     GROUP BY cliente_id
-                                    ) pag ON pag.cliente_id = c.id
+                                                                        ) res ON res.cliente_id = c.id
+                                    LEFT JOIN (
+                                        SELECT p1.cliente_id, p1.fecha_pago, p1.fecha_vencimiento, p1.estado
+                                        FROM pagos p1
+                                        INNER JOIN (
+                                                SELECT cliente_id, MAX(id) AS max_id
+                                                FROM pagos
+                                                GROUP BY cliente_id
+                                        ) p2 ON p2.cliente_id = p1.cliente_id AND p2.max_id = p1.id
+                                    ) ult ON ult.cliente_id = c.id
                                     ORDER BY c.nombre ASC";
 
         $stmt = $this->conn->prepare($query);

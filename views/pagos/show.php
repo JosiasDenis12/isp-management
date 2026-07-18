@@ -234,6 +234,33 @@
             </div>
         </div>
 
+        <div id="whatsappReminderPanel" class="card mb-4 d-none">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">
+                    <i class="fab fa-whatsapp me-2 text-success"></i>
+                    Recordatorio listo
+                </h5>
+                <span class="badge bg-success">Visible</span>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">Se generó el mensaje del recordatorio para enviar por WhatsApp.</p>
+                <div class="alert alert-light border small mb-3">
+                    <div class="fw-semibold mb-1">Mensaje</div>
+                    <div id="whatsappReminderMessage" style="white-space: pre-wrap;"></div>
+                </div>
+                <div class="d-grid gap-2">
+                    <a id="whatsappReminderLink" class="btn btn-success" href="#" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-whatsapp me-1"></i>
+                        Abrir WhatsApp
+                    </a>
+                    <button type="button" id="whatsappReminderCopy" class="btn btn-outline-secondary">
+                        <i class="fas fa-copy me-1"></i>
+                        Copiar mensaje
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Información del Cliente -->
         <div class="card">
             <div class="card-header">
@@ -323,6 +350,32 @@ function mostrarAccionPago(tipo, mensaje) {
     alertBox._hideTimer = window.setTimeout(() => {
         alertBox.classList.add('d-none');
     }, 5000);
+}
+
+function mostrarRecordatorioWhatsApp(data) {
+    const panel = document.getElementById('whatsappReminderPanel');
+    const link = document.getElementById('whatsappReminderLink');
+    const messageBox = document.getElementById('whatsappReminderMessage');
+    const copyButton = document.getElementById('whatsappReminderCopy');
+
+    if (!panel || !link || !messageBox || !copyButton || !data) {
+        return;
+    }
+
+    link.href = data.whatsapp_url || '#';
+    messageBox.textContent = data.mensaje || 'Recordatorio preparado correctamente.';
+    copyButton.onclick = async function() {
+        try {
+            await navigator.clipboard.writeText(data.mensaje || '');
+            mostrarAccionPago('success', 'Mensaje copiado al portapapeles');
+        } catch (error) {
+            console.error('No se pudo copiar el mensaje:', error);
+            mostrarAccionPago('warning', 'No se pudo copiar el mensaje automáticamente');
+        }
+    };
+
+    panel.classList.remove('d-none');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function setLoading(button, loadingText) {
@@ -424,10 +477,7 @@ async function enviarRecordatorio(pagoId) {
         }
 
         mostrarAccionPago('success', data.message || 'Recordatorio preparado correctamente');
-
-        if (data.data && data.data.whatsapp_url) {
-            window.open(data.data.whatsapp_url, '_blank', 'noopener');
-        }
+        mostrarRecordatorioWhatsApp(data.data || {});
     } catch (error) {
         console.error('Error al enviar recordatorio:', error);
         mostrarAccionPago('danger', error.message || 'Error al procesar la solicitud');

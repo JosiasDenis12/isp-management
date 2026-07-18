@@ -21,12 +21,18 @@ class ReporteController {
             if ($diaCorte < 1) $diaCorte = 1;
             if ($diaCorte > 31) $diaCorte = 31;
 
-            $base = $r['ultima_fecha_venc_pagada'] ?? null;
-            if (empty($base)) {
-                $base = $r['fecha_contratacion'] ?? null;
+            $ultimoEstadoPago = (string)($r['ultimo_estado_pago'] ?? '');
+            $totalPagos = (int)($r['total_pagos'] ?? 0);
+            $ultimaFechaVencimiento = $r['ultima_fecha_vencimiento'] ?? null;
+
+            if ($totalPagos === 0) {
+                $r['fecha_vencimiento_calc'] = $this->calcularVencimientoPorCorte($r['fecha_contratacion'] ?? null, $diaCorte);
+            } else {
+                $r['fecha_vencimiento_calc'] = $ultimaFechaVencimiento ?: $this->calcularVencimientoPorCorte($r['fecha_contratacion'] ?? null, $diaCorte);
             }
 
-            $r['fecha_vencimiento_calc'] = $this->calcularVencimientoPorCorte($base, $diaCorte);
+            $r['tiene_pagos'] = $totalPagos > 0;
+            $r['ultimo_estado_pago'] = $ultimoEstadoPago;
             return $r;
         }, $rows);
 
