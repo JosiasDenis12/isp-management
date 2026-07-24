@@ -175,6 +175,8 @@ class Pago {
     }
     
     public function getStats() {
+        require_once 'models/Cliente.php';
+
         $query = "SELECT 
                     COUNT(*) as total_pagos,
                     SUM(CASE WHEN estado = 'pagado' THEN monto ELSE 0 END) as ingresos_mes,
@@ -186,21 +188,38 @@ class Pago {
         
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $stats = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        $clienteModel = new Cliente();
+        $resumenPagos = $clienteModel->getResumenEstadoPagos();
+
+        $stats['total_pagos'] = (int)($stats['total_pagos'] ?? 0);
+        $stats['ingresos_mes'] = (float)($stats['ingresos_mes'] ?? 0);
+        $stats['pagos_vencidos'] = (int)($resumenPagos['clientes_con_pagos_vencidos'] ?? ($stats['pagos_vencidos'] ?? 0));
+        $stats['pagos_pendientes'] = (int)($resumenPagos['clientes_por_vencer_7_dias'] ?? ($stats['pagos_pendientes'] ?? 0));
+
+        return $stats;
     }
     
     public function getProximosVencimientos() {
-        $query = "SELECT p.*, c.nombre as cliente_nombre
-                  FROM " . $this->table_name . " p
-                  JOIN clientes c ON p.cliente_id = c.id
-                  WHERE p.estado = 'pendiente' 
-                  AND p.fecha_vencimiento <= DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
-                  ORDER BY p.fecha_vencimiento ASC
-                  LIMIT 5";
-        
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        require_once 'models/Cliente.php';
+
+        $clienteModel = new Cliente();
+        $clientes = $clienteModel->getClientesConPagosPorVencer(7);
+
+        return array_slice(array_map(function ($cliente) {
+            return [
+                'cliente_id' => $cliente['id'] ?? null,
+                'cliente_nombre' => $cliente['nombre'] ?? '—',
+                'cliente_telefono' => $cliente['telefono'] ?? '',
+                'fecha_vencimiento' => $cliente['fecha_vencimiento'] ?? null,
+                'monto' => $cliente['monto'] ?? 0,
+                'numero_factura' => $cliente['numero_factura'] ?? '',
+                'dias_para_vencer' => $cliente['dias_para_vencer'] ?? null,
+                'estado' => ($cliente['dias_para_vencer'] ?? 0) === 0 ? 'vencido' : 'pendiente',
+            ];
+        }, $clientes), 0, 5);
     }
     
     public function generateFacturaNumber() {

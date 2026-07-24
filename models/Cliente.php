@@ -23,6 +23,104 @@ class Cliente {
         $database = new Database();
         $this->conn = $database->getConnection();
     }
+
+    private function calcularVencimientoPorCorte(?string $baseDate, int $diaCorte): ?string {
+        $baseDate = trim((string)$baseDate);
+        if ($baseDate === '') {
+            return null;
+        }
+
+        $base = DateTimeImmutable::createFromFormat('Y-m-d', substr($baseDate, 0, 10));
+        if (!$base) {
+            return null;
+        }
+
+        $year = (int)$base->format('Y');
+        $month = (int)$base->format('m');
+
+        $firstOfMonth = new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month));
+        $lastDay = (int)$firstOfMonth->format('t');
+        $day = max(1, min($diaCorte, $lastDay));
+        $candidate = $firstOfMonth->setDate($year, $month, $day);
+
+        if ($candidate <= $base) {
+            $next = $firstOfMonth->modify('first day of next month');
+            $nextYear = (int)$next->format('Y');
+            $nextMonth = (int)$next->format('m');
+            $nextLast = (int)$next->format('t');
+            $nextDay = max(1, min($diaCorte, $nextLast));
+            $candidate = $next->setDate($nextYear, $nextMonth, $nextDay);
+        }
+
+        return $candidate->format('Y-m-d');
+    }
+
+    private function calcularDiasRestantes(?string $fechaVencimiento): ?int {
+        $fechaVencimiento = trim((string)$fechaVencimiento);
+        if ($fechaVencimiento === '') {
+            return null;
+        }
+
+        $venc = DateTimeImmutable::createFromFormat('Y-m-d', substr($fechaVencimiento, 0, 10));
+        if (!$venc) {
+            return null;
+        }
+
+        $hoy = new DateTimeImmutable('today');
+        return (int)$hoy->diff($venc)->format('%r%a');
+    }
+
+    private function obtenerResumenSuscripcion(array $row): array {
+        $diaCorte = (int)($row['dia_corte'] ?? 0);
+        if ($diaCorte < 1) {
+            $diaCorte = 1;
+        } elseif ($diaCorte > 31) {
+            $diaCorte = 31;
+        }
+
+        $fechaVencimiento = $row['ultima_fecha_vencimiento'] ?? null;
+        if (empty($fechaVencimiento)) {
+            $fechaVencimiento = $this->calcularVencimientoPorCorte($row['fecha_contratacion'] ?? null, $diaCorte);
+        }
+
+        $diasRestantes = $this->calcularDiasRestantes($fechaVencimiento);
+        $totalPagos = (int)($row['total_pagos'] ?? 0);
+
+        $estado = 'sinpagos';
+        if ($fechaVencimiento !== null) {
+            if ($diasRestantes < 0) {
+                $estado = 'vencido';
+            } elseif ($diasRestantes === 0) {
+                $estado = 'vencehoy';
+            } elseif ($diasRestantes <= 7) {
+                $estado = 'porvencer';
+            } else {
+                $estado = 'aldia';
+            }
+        } elseif ($totalPagos > 0) {
+            $estado = 'aldia';
+        }
+
+        $monto = !empty($row['ultima_fecha_vencimiento'])
+            ? (float)($row['total_pagado'] ?? 0)
+            : (float)($row['plan_mensual'] ?? 0);
+
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'nombre' => (string)($row['nombre'] ?? ''),
+            'telefono' => (string)($row['telefono'] ?? ''),
+            'estado_cliente' => (string)($row['estado'] ?? ''),
+            'fecha_vencimiento' => $fechaVencimiento,
+            'monto' => $monto,
+            'numero_factura' => (string)($row['numero_factura'] ?? ''),
+            'dias' => $diasRestantes,
+            'dias_vencido' => $diasRestantes !== null && $diasRestantes < 0 ? abs($diasRestantes) : 0,
+            'dias_para_vencer' => $diasRestantes !== null && $diasRestantes >= 0 ? $diasRestantes : 0,
+            'estado_calculado' => $estado,
+            'total_pagos' => $totalPagos,
+            'plan_mensual' => (float)($row['plan_mensual'] ?? 0),
+        ];
+    }
     
     public function getAll() {
         $query = "SELECT * FROM " . $this->table_name . " ORDER BY created_at DESC";
@@ -106,68 +204,92 @@ class Cliente {
     }
     
     public function getClientesConPagosVencidos() {
-        $query = "SELECT 
-                    c.id,
-                    c.nombre,
-                    c.telefono,
-                    c.estado as estado_cliente,
-                    p.fecha_vencimiento,
-                    p.monto,
-                    p.numero_factura,
-                    DATEDIFF(CURRENT_DATE(), p.fecha_vencimiento) as dias_vencido
-                  FROM " . $this->table_name . " c
-                  INNER JOIN pagos p ON c.id = p.cliente_id
-                  WHERE p.estado = 'vencido' 
-                  OR (p.estado = 'pendiente' AND p.fecha_vencimiento < CURRENT_DATE())
-                  ORDER BY p.fecha_vencimiento ASC";
-        
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $clientes = [];
+
+        foreach ($this->getResumenSuscripciones() as $row) {
+            $resumen = $this->obtenerResumenSuscripcion($row);
+            if (($resumen['estado_calculado'] ?? '') !== 'vencido') {
+                continue;
+            }
+
+            $clientes[] = [
+                'id' => $resumen['id'],
+                'nombre' => $resumen['nombre'],
+                'telefono' => $resumen['telefono'],
+                'estado_cliente' => $resumen['estado_cliente'],
+                'fecha_vencimiento' => $resumen['fecha_vencimiento'],
+                'monto' => $resumen['monto'],
+                'numero_factura' => $resumen['numero_factura'],
+                'dias_vencido' => $resumen['dias_vencido'],
+            ];
+        }
+
+        usort($clientes, function ($a, $b) {
+            return strcmp((string)($a['fecha_vencimiento'] ?? ''), (string)($b['fecha_vencimiento'] ?? ''));
+        });
+
+        return $clientes;
     }
     
     public function getClientesConPagosPorVencer($dias = 7) {
-        $query = "SELECT 
-                    c.id,
-                    c.nombre,
-                    c.telefono,
-                    c.estado as estado_cliente,
-                    p.fecha_vencimiento,
-                    p.monto,
-                    p.numero_factura,
-                    DATEDIFF(p.fecha_vencimiento, CURRENT_DATE()) as dias_para_vencer
-                  FROM " . $this->table_name . " c
-                  INNER JOIN pagos p ON c.id = p.cliente_id
-                  WHERE p.estado = 'pendiente' 
-                  AND p.fecha_vencimiento BETWEEN CURRENT_DATE() AND DATE_ADD(CURRENT_DATE(), INTERVAL :dias DAY)
-                  ORDER BY p.fecha_vencimiento ASC";
-        
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':dias', $dias);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $dias = max(0, (int)$dias);
+        $clientes = [];
+
+        foreach ($this->getResumenSuscripciones() as $row) {
+            $resumen = $this->obtenerResumenSuscripcion($row);
+            $diasRestantes = $resumen['dias'];
+            if ($diasRestantes === null || $diasRestantes < 0 || $diasRestantes > $dias) {
+                continue;
+            }
+
+            $clientes[] = [
+                'id' => $resumen['id'],
+                'nombre' => $resumen['nombre'],
+                'telefono' => $resumen['telefono'],
+                'estado_cliente' => $resumen['estado_cliente'],
+                'fecha_vencimiento' => $resumen['fecha_vencimiento'],
+                'monto' => $resumen['monto'],
+                'numero_factura' => $resumen['numero_factura'],
+                'dias_para_vencer' => $diasRestantes,
+            ];
+        }
+
+        usort($clientes, function ($a, $b) {
+            return (int)($a['dias_para_vencer'] ?? 0) <=> (int)($b['dias_para_vencer'] ?? 0);
+        });
+
+        return $clientes;
     }
     
     public function getResumenEstadoPagos() {
-        $query = "SELECT 
-                    COUNT(DISTINCT CASE 
-                        WHEN p.estado = 'vencido' OR (p.estado = 'pendiente' AND p.fecha_vencimiento < CURRENT_DATE())
-                        THEN c.id END) as clientes_con_pagos_vencidos,
-                    COUNT(DISTINCT CASE 
-                        WHEN p.estado = 'pendiente' AND p.fecha_vencimiento BETWEEN CURRENT_DATE() AND DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
-                        THEN c.id END) as clientes_por_vencer_7_dias,
-                    SUM(CASE 
-                        WHEN p.estado = 'vencido' OR (p.estado = 'pendiente' AND p.fecha_vencimiento < CURRENT_DATE())
-                        THEN p.monto ELSE 0 END) as monto_total_vencido,
-                    AVG(CASE 
-                        WHEN p.estado = 'vencido' OR (p.estado = 'pendiente' AND p.fecha_vencimiento < CURRENT_DATE())
-                        THEN DATEDIFF(CURRENT_DATE(), p.fecha_vencimiento) END) as promedio_dias_atraso
-                  FROM " . $this->table_name . " c
-                  LEFT JOIN pagos p ON c.id = p.cliente_id";
-        
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $clientesVencidos = 0;
+        $clientesPorVencer = 0;
+        $montoTotalVencido = 0;
+        $diasAtraso = [];
+
+        foreach ($this->getResumenSuscripciones() as $row) {
+            $resumen = $this->obtenerResumenSuscripcion($row);
+            $diasRestantes = $resumen['dias'];
+
+            if ($diasRestantes === null) {
+                continue;
+            }
+
+            if ($diasRestantes < 0) {
+                $clientesVencidos++;
+                $montoTotalVencido += (float)$resumen['monto'];
+                $diasAtraso[] = abs($diasRestantes);
+            } elseif ($diasRestantes <= 7) {
+                $clientesPorVencer++;
+            }
+        }
+
+        return [
+            'clientes_con_pagos_vencidos' => $clientesVencidos,
+            'clientes_por_vencer_7_dias' => $clientesPorVencer,
+            'monto_total_vencido' => $montoTotalVencido,
+            'promedio_dias_atraso' => !empty($diasAtraso) ? array_sum($diasAtraso) / count($diasAtraso) : null,
+        ];
     }
 
     public function getResumenSuscripciones() {

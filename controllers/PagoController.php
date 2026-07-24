@@ -7,10 +7,12 @@ class PagoController {
     public function index() {
         $pagoModel = new Pago();
         $pagos = $pagoModel->getAll();
+        $proximosVencimientos = $pagoModel->getProximosVencimientos();
         
         $data = [
             'title' => 'Pagos y Facturación - ' . APP_NAME,
-            'pagos' => $pagos
+            'pagos' => $pagos,
+            'proximosVencimientos' => $proximosVencimientos
         ];
         
         $this->loadView('pagos/index', $data);

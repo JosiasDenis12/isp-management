@@ -175,7 +175,7 @@
                 <div class="d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center">
                     <div>
                         <div class="fw-semibold">
-                            <i class="fas fa-filter me-2 text-primary"></i>
+                               <option value="vencehoy">Vence hoy</option>
                             Filtros
                         </div>
                         <div class="small text-muted">Busca por nombre o teléfono y filtra por estado.</div>
@@ -202,6 +202,7 @@
                             <select class="form-select" id="filterSelect">
                                 <option value="all">Todos</option>
                                 <option value="sinpagos">Sin pagos</option>
+                                <option value="vencehoy">Vence hoy</option>
                                 <option value="aldia">Al día</option>
                                 <option value="porvencer">Por vencer (≤ 7 días)</option>
                                 <option value="vencidos">Vencidos</option>
@@ -287,22 +288,26 @@
                         $statusBadge = 'bg-secondary';
                         $rowClass = '';
 
-                        if ($tienePagos) {
-                            if ($ultimoEstadoPago === 'pagado') {
+                            if ($tienePagos && $ultimoEstadoPago === 'pagado') {
                                 $statusKey = 'aldia';
                                 $statusTxt = 'Al día';
                                 $statusBadge = 'bg-success';
                                 $rowClass = 'sus-row-aldia';
                                 $diasRestantes = null;
-                            } elseif ($ultimoEstadoPago !== '' && $diasRestantes !== null) {
+                            } elseif ($diasRestantes !== null) {
                                 if ($diasRestantes < 0) {
                                     $statusKey = 'vencido';
                                     $statusTxt = 'Vencido';
                                     $statusBadge = 'bg-danger';
                                     $rowClass = 'sus-row-vencido';
-                                } else if ($diasRestantes <= 7) {
+                                } elseif ($diasRestantes === 0) {
+                                    $statusKey = 'vencehoy';
+                                    $statusTxt = 'Vence hoy';
+                                    $statusBadge = 'bg-danger-subtle text-danger';
+                                    $rowClass = 'sus-row-vencido';
+                                } elseif ($diasRestantes <= 7) {
                                     $statusKey = 'porvencer';
-                                    $statusTxt = 'Por vencer';
+                                    $statusTxt = 'Próximo a vencer';
                                     $statusBadge = 'bg-warning text-dark';
                                     $rowClass = 'sus-row-porvencer';
                                 } else {
@@ -311,12 +316,6 @@
                                     $statusBadge = 'bg-success';
                                     $rowClass = 'sus-row-aldia';
                                 }
-                            } else {
-                                $statusKey = 'aldia';
-                                $statusTxt = 'Al día';
-                                $statusBadge = 'bg-success';
-                                $rowClass = 'sus-row-aldia';
-                            }
                         }
 
                         $tipoConexion = (string)($r['tipo_conexion'] ?? '');
@@ -452,12 +451,13 @@
     const rows = Array.from(table.querySelectorAll('tbody tr'));
 
     function updateStats() {
-        const totals = { total: 0, sinpagos: 0, aldia: 0, porvencer: 0, vencido: 0 };
+        const totals = { total: 0, sinpagos: 0, aldia: 0, porvencer: 0, vencehoy: 0, vencido: 0 };
         rows.forEach(tr => {
             totals.total++;
             const st = tr.dataset.status || 'sindato';
             if (st === 'sinpagos') totals.sinpagos++;
             if (st === 'aldia') totals.aldia++;
+            if (st === 'vencehoy') totals.vencehoy++;
             if (st === 'porvencer') totals.porvencer++;
             if (st === 'vencido') totals.vencido++;
         });
@@ -465,7 +465,7 @@
         if (statTotal) statTotal.textContent = String(totals.total);
         if (statSinPagos) statSinPagos.textContent = String(totals.sinpagos);
         if (statAlDia) statAlDia.textContent = String(totals.aldia);
-        if (statPorVencer) statPorVencer.textContent = String(totals.porvencer);
+        if (statPorVencer) statPorVencer.textContent = String(totals.porvencer + totals.vencehoy);
         if (statVencidos) statVencidos.textContent = String(totals.vencido);
     }
 
@@ -486,6 +486,7 @@
             if (ok && filter !== 'all') {
                 if (filter === 'sinpagos') ok = st === 'sinpagos';
                 else if (filter === 'aldia') ok = st === 'aldia';
+                else if (filter === 'vencehoy') ok = st === 'vencehoy';
                 else if (filter === 'vencidos') ok = st === 'vencido';
                 else if (filter === 'porvencer') ok = st === 'porvencer';
                 else if (dias === null) ok = false;

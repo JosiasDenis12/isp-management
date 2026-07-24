@@ -353,9 +353,11 @@
                                         <td>
                                             <?php 
                                             $dias = $cliente['dias_para_vencer'];
-                                            $badgeClass = $dias <= 2 ? 'bg-danger-subtle text-danger' : ($dias <= 5 ? 'bg-warning-subtle text-warning' : 'bg-info-subtle text-info');
+                                            $badgeClass = $dias <= 0 ? 'bg-danger-subtle text-danger' : ($dias <= 2 ? 'bg-danger-subtle text-danger' : ($dias <= 5 ? 'bg-warning-subtle text-warning' : 'bg-info-subtle text-info'));
                                             ?>
-                                            <span class="badge rounded-pill <?php echo $badgeClass; ?>"><?php echo $dias; ?> días</span>
+                                            <span class="badge rounded-pill <?php echo $badgeClass; ?>">
+                                                <?php echo $dias === 0 ? 'Vence hoy' : $dias . ' días'; ?>
+                                            </span>
                                         </td>
                                         <td>
                                             <?php 

@@ -24,10 +24,14 @@
     $metodoPagoOptions = array_keys($metodoPagoOptions);
     sort($metodoPagoOptions);
 
-    // Próximos vencimientos (pendientes ordenados por fecha_vencimiento asc, top 4)
-    $proximosVenc = array_filter($pagos, fn($p) => ($p['estado'] ?? '') === 'pendiente' && !empty($p['fecha_vencimiento']));
-    usort($proximosVenc, fn($a, $b) => strtotime($a['fecha_vencimiento']) - strtotime($b['fecha_vencimiento']));
-    $proximosVenc = array_slice(array_values($proximosVenc), 0, 4);
+    // Próximos vencimientos: preferir cálculo de suscripción del controlador; mantener fallback al historial crudo.
+    if (!empty($proximosVencimientos) && is_array($proximosVencimientos)) {
+        $proximosVenc = array_slice(array_values($proximosVencimientos), 0, 4);
+    } else {
+        $proximosVenc = array_filter($pagos, fn($p) => ($p['estado'] ?? '') === 'pendiente' && !empty($p['fecha_vencimiento']));
+        usort($proximosVenc, fn($a, $b) => strtotime($a['fecha_vencimiento']) - strtotime($b['fecha_vencimiento']));
+        $proximosVenc = array_slice(array_values($proximosVenc), 0, 4);
+    }
 
     // Datos para gráfico de ingresos por mes (últimos 6 meses)
     $monthlyData = [];
@@ -375,7 +379,7 @@
                     <div class="venc-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <div class="fw-semibold" style="font-size:.87rem;"><?php echo htmlspecialchars($v['cliente_nombre'] ?? '—'); ?></div>
+                                <div class="fw-semibold" style="font-size:.87rem;"><?php echo htmlspecialchars($v['cliente_nombre'] ?? $v['nombre'] ?? '—'); ?></div>
                                 <div class="text-muted" style="font-size:.75rem;">Factura: <?php echo htmlspecialchars($v['numero_factura'] ?? '—'); ?></div>
                             </div>
                             <div class="text-end">
