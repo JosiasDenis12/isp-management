@@ -44,7 +44,7 @@
                             <div class="card-body">
                                 <h6>Reporte de Pagos</h6>
                                 <p class="small text-muted">Ingresos, pagos pendientes, vencimientos.</p>
-                                <a href="#" class="btn btn-sm btn-primary">Ver</a>
+                                <a href="<?php echo url('reportes/pagos'); ?>" class="btn btn-sm btn-primary">Ver</a>
                             </div>
                         </div>
                     </div>

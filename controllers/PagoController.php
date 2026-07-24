@@ -8,16 +8,29 @@ class PagoController {
         $pagoModel = new Pago();
         $pagos = $pagoModel->getAll();
         $proximosVencimientos = $pagoModel->getProximosVencimientos();
+        $kpis = $pagoModel->getKpis();
         
         $data = [
             'title' => 'Pagos y Facturación - ' . APP_NAME,
             'pagos' => $pagos,
-            'proximosVencimientos' => $proximosVencimientos
+            'proximosVencimientos' => $proximosVencimientos,
+            'kpis' => $kpis
         ];
         
         $this->loadView('pagos/index', $data);
     }
     
+    public function kpis() {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            echo json_encode(['success' => true, 'data' => (new Pago())->getKpis()]);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            error_log('PagoController@kpis: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'No fue posible actualizar los indicadores']);
+        }
+    }
+
     public function create() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pagoModel = new Pago();

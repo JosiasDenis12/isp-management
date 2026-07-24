@@ -44,6 +44,7 @@ $router->addRoute('GET', '/clientes/{id}/update-status', 'ClienteController', 'u
 
 // Rutas de pagos
 $router->addRoute('GET', '/pagos', 'PagoController', 'index');
+$router->addRoute('GET', '/pagos/kpis', 'PagoController', 'kpis');
 $router->addRoute('GET', '/pagos/create', 'PagoController', 'create');
 $router->addRoute('POST', '/pagos/create', 'PagoController', 'create');
 $router->addRoute('GET', '/pagos/{id}', 'PagoController', 'show');
@@ -72,6 +73,8 @@ $router->addRoute('GET', '/equipos/{id}/reporte', 'EquipoController', 'generarRe
 
 // Rutas de reportes
 $router->addRoute('GET', '/reportes', 'ReporteController', 'index');
+$router->addRoute('GET', '/reportes/pagos', 'ReporteController', 'pagos');
+$router->addRoute('GET', '/reportes/pagos/excel', 'ReporteController', 'pagosExcel');
 $router->addRoute('GET', '/reportes/suscripciones', 'ReporteController', 'suscripciones');
 $router->addRoute('GET', '/reportes/equipos-visitas', 'ReporteController', 'equiposVisitas');
 $router->addRoute('GET', '/reportes/equipos-instalados', 'ReporteController', 'equiposInstalados');

@@ -22,6 +22,9 @@ class Pago {
     }
     
     public function getAll() {
+        // Un pago pendiente pasa a vencido automáticamente al iniciar un nuevo día.
+        // Esto evita que las tarjetas dependan de una actualización manual del estado.
+        $this->actualizarEstadosVencidos();
         $query = "SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono, c.estado as cliente_estado 
                   FROM " . $this->table_name . " p
                   JOIN clientes c ON p.cliente_id = c.id
@@ -29,6 +32,50 @@ class Pago {
         
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function actualizarEstadosVencidos() {
+        $query = "UPDATE " . $this->table_name . "
+                  SET estado = 'vencido'
+                  WHERE estado = 'pendiente'
+                    AND fecha_vencimiento IS NOT NULL
+                    AND fecha_vencimiento < CURRENT_DATE()";
+        return $this->conn->prepare($query)->execute();
+    }
+
+    public function getReportePagos(array $filters = []) {
+        $this->actualizarEstadosVencidos();
+
+        $where = [];
+        $params = [];
+        if (!empty($filters['fecha_desde'])) {
+            $where[] = "COALESCE(NULLIF(p.fecha_pago, '0000-00-00'), p.fecha_vencimiento) >= :fecha_desde";
+            $params[':fecha_desde'] = $filters['fecha_desde'];
+        }
+        if (!empty($filters['fecha_hasta'])) {
+            $where[] = "COALESCE(NULLIF(p.fecha_pago, '0000-00-00'), p.fecha_vencimiento) <= :fecha_hasta";
+            $params[':fecha_hasta'] = $filters['fecha_hasta'];
+        }
+        if (!empty($filters['estado']) && in_array($filters['estado'], ['pagado', 'pendiente', 'vencido'], true)) {
+            $where[] = 'p.estado = :estado';
+            $params[':estado'] = $filters['estado'];
+        }
+        if (!empty($filters['metodo'])) {
+            $where[] = 'p.metodo_pago = :metodo';
+            $params[':metodo'] = $filters['metodo'];
+        }
+
+        $query = "SELECT p.*, c.nombre AS cliente_nombre, c.telefono AS cliente_telefono,
+                         COUNT(CASE WHEN p2.estado = 'pagado' THEN 1 END) AS meses_pagados_cliente
+                  FROM pagos p
+                  INNER JOIN clientes c ON c.id = p.cliente_id
+                  LEFT JOIN pagos p2 ON p2.cliente_id = p.cliente_id
+                  " . ($where ? 'WHERE ' . implode(' AND ', $where) : '') . "
+                  GROUP BY p.id
+                  ORDER BY COALESCE(NULLIF(p.fecha_pago, '0000-00-00'), p.fecha_vencimiento) DESC, p.id DESC";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
@@ -175,30 +222,41 @@ class Pago {
     }
     
     public function getStats() {
-        require_once 'models/Cliente.php';
+        return $this->getKpis();
+    }
 
-        $query = "SELECT 
-                    COUNT(*) as total_pagos,
-                    SUM(CASE WHEN estado = 'pagado' THEN monto ELSE 0 END) as ingresos_mes,
-                    COUNT(CASE WHEN estado = 'vencido' THEN 1 END) as pagos_vencidos,
-                    COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) as pagos_pendientes
-                  FROM " . $this->table_name . " 
-                  WHERE MONTH(fecha_vencimiento) = MONTH(CURRENT_DATE()) 
-                  AND YEAR(fecha_vencimiento) = YEAR(CURRENT_DATE())";
-        
+    /** Fuente única para todos los KPIs de pagos y dashboard. */
+    public function getKpis() {
+        require_once 'models/Cliente.php';
+        $this->actualizarEstadosVencidos();
+
+        $query = "SELECT
+                    SUM(CASE WHEN fecha_pago >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND fecha_pago < DATE_ADD(DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01'), INTERVAL 1 MONTH) THEN 1 ELSE 0 END) AS total_pagos_mes,
+                    SUM(CASE WHEN estado = 'pagado' AND fecha_pago >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND fecha_pago < DATE_ADD(DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01'), INTERVAL 1 MONTH) THEN 1 ELSE 0 END) AS pagos_realizados_mes,
+                    COALESCE(SUM(CASE WHEN estado = 'pagado' AND fecha_pago >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND fecha_pago < DATE_ADD(DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01'), INTERVAL 1 MONTH) THEN monto ELSE 0 END), 0) AS ingresos_mes,
+                    SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) AS pagos_pendientes,
+                    SUM(CASE WHEN estado = 'vencido' THEN 1 ELSE 0 END) AS pagos_vencidos_registrados,
+                    SUM(CASE WHEN fecha_pago >= DATE_FORMAT(CURRENT_DATE() - INTERVAL 1 MONTH, '%Y-%m-01') AND fecha_pago < DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') THEN 1 ELSE 0 END) AS total_pagos_mes_anterior,
+                    SUM(CASE WHEN estado = 'pagado' AND fecha_pago >= DATE_FORMAT(CURRENT_DATE() - INTERVAL 1 MONTH, '%Y-%m-01') AND fecha_pago < DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') THEN 1 ELSE 0 END) AS pagos_realizados_mes_anterior,
+                    COALESCE(SUM(CASE WHEN estado = 'pagado' AND fecha_pago >= DATE_FORMAT(CURRENT_DATE() - INTERVAL 1 MONTH, '%Y-%m-01') AND fecha_pago < DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') THEN monto ELSE 0 END), 0) AS ingresos_mes_anterior
+                    , SUM(CASE WHEN estado = 'pendiente' AND fecha_vencimiento >= DATE_FORMAT(CURRENT_DATE() - INTERVAL 1 MONTH, '%Y-%m-01') AND fecha_vencimiento < DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') THEN 1 ELSE 0 END) AS pagos_pendientes_mes_anterior
+                  FROM " . $this->table_name;
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
-
         $stats = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
         $clienteModel = new Cliente();
-        $resumenPagos = $clienteModel->getResumenEstadoPagos();
+        $vencidos = $clienteModel->getClientesConPagosVencidos();
+        $proximos = $clienteModel->getClientesConPagosPorVencer(7);
+        foreach (['total_pagos_mes', 'pagos_realizados_mes', 'pagos_pendientes', 'pagos_vencidos_registrados', 'total_pagos_mes_anterior', 'pagos_realizados_mes_anterior', 'pagos_pendientes_mes_anterior'] as $key) $stats[$key] = (int)($stats[$key] ?? 0);
+        foreach (['ingresos_mes', 'ingresos_mes_anterior'] as $key) $stats[$key] = (float)($stats[$key] ?? 0);
 
-        $stats['total_pagos'] = (int)($stats['total_pagos'] ?? 0);
-        $stats['ingresos_mes'] = (float)($stats['ingresos_mes'] ?? 0);
-        $stats['pagos_vencidos'] = (int)($resumenPagos['clientes_con_pagos_vencidos'] ?? ($stats['pagos_vencidos'] ?? 0));
-        $stats['pagos_pendientes'] = (int)($resumenPagos['clientes_por_vencer_7_dias'] ?? ($stats['pagos_pendientes'] ?? 0));
-
+        $stats['clientes_vencidos'] = count($vencidos);
+        $stats['proximos_vencimientos'] = count($proximos);
+        $stats['total_pagos'] = $stats['total_pagos_mes'];
+        $stats['pagos_vencidos'] = $stats['clientes_vencidos'];
+        $stats['clientes_vencidos_detalle'] = $vencidos;
+        $stats['proximos_vencimientos_detalle'] = $proximos;
         return $stats;
     }
     

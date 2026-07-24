@@ -3,17 +3,26 @@
 <?php
     $pagos = $pagos ?? [];
 
-    $totalPagos  = count($pagos);
+    $kpis = $kpis ?? [];
+    $totalPagos  = (int)($kpis['total_pagos_mes'] ?? 0);
     $pagados     = array_values(array_filter($pagos, fn($p) => ($p['estado'] ?? '') === 'pagado'));
     $pendientes  = array_values(array_filter($pagos, fn($p) => ($p['estado'] ?? '') === 'pendiente'));
     $vencidos    = array_values(array_filter($pagos, fn($p) => ($p['estado'] ?? '') === 'vencido'));
-    $ingresos    = array_sum(array_column($pagados, 'monto'));
+    $ingresos    = (float)($kpis['ingresos_mes'] ?? 0);
+    $pagadosMes = (int)($kpis['pagos_realizados_mes'] ?? 0);
+    $pendientesMes = (int)($kpis['pagos_pendientes'] ?? 0);
+    $vencidosMes = (int)($kpis['clientes_vencidos'] ?? 0);
 
     // % change placeholders – replace with real queries from controller if available
-    $pctTotal    = $totalPagos > 0 ? 100 : 0;
-    $pctPagados  = $totalPagos > 0 ? round((count($pagados)   / $totalPagos) * 100) : 0;
-    $pctPend     = $totalPagos > 0 ? round((count($pendientes) / $totalPagos) * 100) : 0;
-    $pctVenc     = $totalPagos > 0 ? round((count($vencidos)   / $totalPagos) * 100) : 0;
+    $variacion = function ($actual, $anterior) {
+        $actual = (float)$actual; $anterior = (float)$anterior;
+        if ($anterior == 0.0) return $actual > 0 ? 100 : 0;
+        return round((($actual - $anterior) / abs($anterior)) * 100);
+    };
+    $pctTotal = $variacion($totalPagos, $kpis['total_pagos_mes_anterior'] ?? 0);
+    $pctPagados = $variacion($pagadosMes, $kpis['pagos_realizados_mes_anterior'] ?? 0);
+    $pctPend = $variacion($pendientesMes, $kpis['pagos_pendientes_mes_anterior'] ?? 0);
+    $pctIngresos = $variacion($ingresos, $kpis['ingresos_mes_anterior'] ?? 0);
 
     // Método de pago options
     $metodoPagoOptions = [];
@@ -193,7 +202,7 @@
                 <div class="d-flex align-items-start justify-content-between gap-3">
                     <div class="flex-grow-1">
                         <div class="stat-label">Total Pagos</div>
-                        <div class="stat-value"><?php echo $totalPagos; ?></div>
+                        <div class="stat-value" id="kpi-total"><?php echo $totalPagos; ?></div>
                         <div class="stat-meta">Este mes</div>
                         <div class="mt-1 <?php echo $pctTotal >= 0 ? 'pct-up' : 'pct-down'; ?>">
                             <i class="fas fa-arrow-<?php echo $pctTotal >= 0 ? 'up' : 'down'; ?> me-1"></i><?php echo abs($pctTotal); ?>% vs mes anterior
@@ -217,7 +226,7 @@
                 <div class="d-flex align-items-start justify-content-between gap-3">
                     <div class="flex-grow-1">
                         <div class="stat-label">Pagados</div>
-                        <div class="stat-value"><?php echo count($pagados); ?></div>
+                        <div class="stat-value" id="kpi-pagados"><?php echo $pagadosMes; ?></div>
                         <div class="stat-meta">Este mes</div>
                         <div class="mt-1 pct-up">
                             <i class="fas fa-arrow-up me-1"></i><?php echo $pctPagados; ?>% vs mes anterior
@@ -241,10 +250,10 @@
                 <div class="d-flex align-items-start justify-content-between gap-3">
                     <div class="flex-grow-1">
                         <div class="stat-label">Pendientes</div>
-                        <div class="stat-value"><?php echo count($pendientes); ?></div>
+                        <div class="stat-value" id="kpi-pendientes"><?php echo $pendientesMes; ?></div>
                         <div class="stat-meta">Este mes</div>
-                        <div class="mt-1 <?php echo count($pendientes) > 0 ? 'pct-down' : 'pct-up'; ?>">
-                            <i class="fas fa-arrow-<?php echo count($pendientes) > 0 ? 'down' : 'up'; ?> me-1"></i><?php echo $pctPend; ?>% vs mes anterior
+                        <div class="mt-1 <?php echo $pctPend > 0 ? 'pct-down' : 'pct-up'; ?>">
+                            <i class="fas fa-arrow-<?php echo $pctPend > 0 ? 'up' : 'down'; ?> me-1"></i><?php echo abs($pctPend); ?>% vs mes anterior
                         </div>
                     </div>
                     <div class="stat-side">
@@ -265,10 +274,10 @@
                 <div class="d-flex align-items-start justify-content-between gap-3">
                     <div class="flex-grow-1">
                         <div class="stat-label">Vencidos</div>
-                        <div class="stat-value"><?php echo count($vencidos); ?></div>
-                        <div class="stat-meta">Este mes</div>
-                        <div class="mt-1 <?php echo count($vencidos) > 0 ? 'pct-down' : 'pct-up'; ?>">
-                            <i class="fas fa-arrow-<?php echo count($vencidos) > 0 ? 'down' : 'up'; ?> me-1"></i><?php echo $pctVenc; ?>% vs mes anterior
+                        <div class="stat-value" id="kpi-vencidos"><?php echo $vencidosMes; ?></div>
+                        <div class="stat-meta">Clientes con corte vencido hoy</div>
+                        <div class="mt-1 <?php echo $vencidosMes > 0 ? 'pct-down' : 'pct-up'; ?>">
+                            <i class="fas fa-triangle-exclamation me-1"></i>Actualizado con la fecha actual
                         </div>
                     </div>
                     <div class="stat-side">
@@ -289,10 +298,10 @@
                 <div class="d-flex align-items-start justify-content-between gap-3">
                     <div class="flex-grow-1">
                         <div class="stat-label">Total Ingresos</div>
-                        <div class="stat-value" style="font-size:1.6rem;">$<?php echo number_format($ingresos); ?></div>
+                        <div class="stat-value" id="kpi-ingresos" style="font-size:1.6rem;">$<?php echo number_format($ingresos, 2); ?></div>
                         <div class="stat-meta">Este mes</div>
                         <div class="mt-1 pct-up">
-                            <i class="fas fa-arrow-up me-1"></i>18% vs mes anterior
+                            <i class="fas fa-arrow-<?php echo $pctIngresos >= 0 ? 'up' : 'down'; ?> me-1"></i><?php echo abs($pctIngresos); ?>% vs mes anterior
                         </div>
                     </div>
                     <div class="stat-side">
@@ -342,15 +351,15 @@
                     <div class="w-100 mt-3">
                         <div class="donut-legend-row">
                             <div class="d-flex align-items-center gap-2"><span class="donut-legend-dot" style="background:#22c55e;"></span> Pagados</div>
-                            <div class="fw-semibold"><?php echo count($pagados); ?> (<?php echo $pctPagados; ?>%)</div>
+                            <div class="fw-semibold"><?php echo $pagadosMes; ?></div>
                         </div>
                         <div class="donut-legend-row">
                             <div class="d-flex align-items-center gap-2"><span class="donut-legend-dot" style="background:#eab308;"></span> Pendientes</div>
-                            <div class="fw-semibold"><?php echo count($pendientes); ?> (<?php echo $pctPend; ?>%)</div>
+                            <div class="fw-semibold"><?php echo $pendientesMes; ?></div>
                         </div>
                         <div class="donut-legend-row">
                             <div class="d-flex align-items-center gap-2"><span class="donut-legend-dot" style="background:#ef4444;"></span> Vencidos</div>
-                            <div class="fw-semibold"><?php echo count($vencidos); ?> (<?php echo $pctVenc; ?>%)</div>
+                            <div class="fw-semibold"><?php echo $vencidosMes; ?></div>
                         </div>
                     </div>
                 </div>
@@ -744,9 +753,9 @@
 
     /* ── Donut chart ── */
     const ctxDonut = document.getElementById('donutChart');
-    const pagados   = <?php echo count($pagados); ?>;
-    const pendientes= <?php echo count($pendientes); ?>;
-    const vencidos  = <?php echo count($vencidos); ?>;
+    const pagados   = <?php echo $pagadosMes; ?>;
+    const pendientes= <?php echo $pendientesMes; ?>;
+    const vencidos  = <?php echo $vencidosMes; ?>;
     if (ctxDonut) {
         new Chart(ctxDonut, {
             type: 'doughnut',
@@ -879,6 +888,37 @@
 
     setView(false);
     update();
+})();
+
+/* Mantiene los KPIs sincronizados si otra acción actualiza pagos o suscripciones. */
+(function syncPaymentKpis() {
+    const endpoint = '<?php echo url('pagos/kpis'); ?>';
+    const money = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    async function refreshKpis() {
+        try {
+            const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            const payload = await response.json();
+            if (!payload.success) return;
+            const data = payload.data;
+            const values = {
+                'kpi-total': data.total_pagos_mes,
+                'kpi-pagados': data.pagos_realizados_mes,
+                'kpi-pendientes': data.pagos_pendientes,
+                'kpi-vencidos': data.clientes_vencidos,
+            };
+            Object.entries(values).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = Number(value || 0);
+            });
+            const ingresos = document.getElementById('kpi-ingresos');
+            if (ingresos) ingresos.textContent = '$' + money.format(Number(data.ingresos_mes || 0));
+        } catch (_) {
+            // Se conserva el último valor confirmado si la conexión se interrumpe.
+        }
+    }
+    document.addEventListener('pago:actualizado', refreshKpis);
+    window.refreshPaymentKpis = refreshKpis;
+    window.setInterval(refreshKpis, 30000);
 })();
 </script>
 

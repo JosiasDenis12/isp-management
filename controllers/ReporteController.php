@@ -44,6 +44,34 @@ class ReporteController {
         $this->loadView('reportes/suscripciones', $data);
     }
 
+    public function pagos() {
+        require_once 'models/Pago.php';
+        $filters = [
+            'fecha_desde' => $this->cleanDate($_GET['fecha_desde'] ?? ''),
+            'fecha_hasta' => $this->cleanDate($_GET['fecha_hasta'] ?? ''),
+            'estado' => trim((string)($_GET['estado'] ?? '')),
+            'metodo' => trim((string)($_GET['metodo'] ?? '')),
+        ];
+        $model = new Pago();
+        $rows = $model->getReportePagos($filters);
+        $data = ['title' => 'Reporte de Pagos - ' . APP_NAME, 'rows' => $rows, 'filters' => $filters, 'kpis' => $model->getKpis()];
+        $this->loadView('reportes/pagos', $data);
+    }
+
+    public function pagosExcel() {
+        require_once 'models/Pago.php';
+        $filters = ['fecha_desde' => $this->cleanDate($_GET['fecha_desde'] ?? ''), 'fecha_hasta' => $this->cleanDate($_GET['fecha_hasta'] ?? ''), 'estado' => trim((string)($_GET['estado'] ?? '')), 'metodo' => trim((string)($_GET['metodo'] ?? ''))];
+        $rows = (new Pago())->getReportePagos($filters);
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename=reporte-pagos-' . date('Y-m-d') . '.csv');
+        echo "\xEF\xBB\xBF";
+        $out = fopen('php://output', 'w');
+        fputcsv($out, ['Cliente', 'Factura', 'Fecha de pago', 'Vencimiento', 'Estado', 'Método', 'Monto', 'Meses pagados']);
+        foreach ($rows as $row) fputcsv($out, [$row['cliente_nombre'], $row['numero_factura'], $row['fecha_pago'], $row['fecha_vencimiento'], $row['estado'], $row['metodo_pago'], $row['monto'], $row['meses_pagados_cliente']]);
+        fclose($out);
+        exit;
+    }
+
     public function equiposVisitas() {
         require_once 'models/VisitaTecnica.php';
 

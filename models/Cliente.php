@@ -297,6 +297,7 @@ class Cliente {
                     c.id,
                     c.nombre,
                     c.telefono,
+                    c.estado,
                     c.tipo_conexion,
                     c.plan_mensual,
                     c.megas_contratados,
