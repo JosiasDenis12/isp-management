@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once 'core/SubscriptionStatus.php';
 
 class Pago {
     private $conn;
@@ -119,7 +120,8 @@ class Pago {
                 throw new RuntimeException('Este pago ya estaba marcado como pagado');
             }
 
-            $nuevaFechaVencimiento = $this->calcularSiguienteVencimiento((int)($pago['cliente_dia_corte'] ?? 5));
+            $ciclo = SubscriptionStatus::calcular(date('Y-m-d'), null, (int)($pago['cliente_dia_corte'] ?? 0));
+            $nuevaFechaVencimiento = $ciclo['fecha_corte'];
 
             $updatePago = "UPDATE " . $this->table_name . "
                            SET estado = 'pagado', fecha_pago = CURRENT_DATE(), fecha_vencimiento = :fecha_vencimiento
@@ -203,6 +205,10 @@ class Pago {
     }
     
     public function create() {
+        $cliente = $this->obtenerClienteParaCiclo((int)$this->cliente_id);
+        if (!$cliente) throw new InvalidArgumentException('Cliente no encontrado');
+        $ciclo = SubscriptionStatus::calcular($this->fecha_pago, null, (int)($cliente['dia_corte'] ?? 0));
+        $this->fecha_vencimiento = $ciclo['fecha_corte'];
         $query = "INSERT INTO " . $this->table_name . " 
                   (cliente_id, monto, fecha_pago, fecha_vencimiento, metodo_pago, estado, numero_factura, observaciones) 
                   VALUES (:cliente_id, :monto, :fecha_pago, :fecha_vencimiento, :metodo_pago, :estado, :numero_factura, :observaciones)";
@@ -247,7 +253,7 @@ class Pago {
 
         $clienteModel = new Cliente();
         $vencidos = $clienteModel->getClientesConPagosVencidos();
-        $proximos = $clienteModel->getClientesConPagosPorVencer(7);
+        $proximos = $clienteModel->getClientesConPagosPorVencer(SubscriptionStatus::DIAS_PROXIMO_VENCIMIENTO);
         foreach (['total_pagos_mes', 'pagos_realizados_mes', 'pagos_pendientes', 'pagos_vencidos_registrados', 'total_pagos_mes_anterior', 'pagos_realizados_mes_anterior', 'pagos_pendientes_mes_anterior'] as $key) $stats[$key] = (int)($stats[$key] ?? 0);
         foreach (['ingresos_mes', 'ingresos_mes_anterior'] as $key) $stats[$key] = (float)($stats[$key] ?? 0);
 
@@ -264,7 +270,7 @@ class Pago {
         require_once 'models/Cliente.php';
 
         $clienteModel = new Cliente();
-        $clientes = $clienteModel->getClientesConPagosPorVencer(7);
+        $clientes = $clienteModel->getClientesConPagosPorVencer(SubscriptionStatus::DIAS_PROXIMO_VENCIMIENTO);
 
         return array_slice(array_map(function ($cliente) {
             return [
@@ -275,7 +281,7 @@ class Pago {
                 'monto' => $cliente['monto'] ?? 0,
                 'numero_factura' => $cliente['numero_factura'] ?? '',
                 'dias_para_vencer' => $cliente['dias_para_vencer'] ?? null,
-                'estado' => ($cliente['dias_para_vencer'] ?? 0) === 0 ? 'vencido' : 'pendiente',
+                'estado' => ($cliente['estado_calculado'] ?? '') === 'vencido' ? 'vencido' : 'pendiente',
             ];
         }, $clientes), 0, 5);
     }
@@ -325,17 +331,10 @@ class Pago {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    private function calcularSiguienteVencimiento($diaCorte) {
-        $diaCorte = max(1, min(31, (int)$diaCorte));
-
-        $base = new DateTimeImmutable('today');
-        $nextMonth = $base->modify('first day of next month');
-        $year = (int)$nextMonth->format('Y');
-        $month = (int)$nextMonth->format('m');
-        $lastDay = (int)$nextMonth->format('t');
-        $day = min($diaCorte, $lastDay);
-
-        return $nextMonth->setDate($year, $month, $day)->format('Y-m-d');
+    private function obtenerClienteParaCiclo(int $clienteId): ?array {
+        $stmt = $this->conn->prepare('SELECT dia_corte FROM clientes WHERE id = :id');
+        $stmt->execute([':id' => $clienteId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 }
 ?>

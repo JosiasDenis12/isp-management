@@ -14,9 +14,9 @@ class ReporteController {
         require_once 'models/Cliente.php';
 
         $clienteModel = new Cliente();
-        $rows = $clienteModel->getResumenSuscripciones();
+        $rows = $clienteModel->enriquecerResumenSuscripciones();
 
-        $rows = array_map(function($r) {
+        /*$rows = array_map(function($r) {
             $diaCorte = (int)($r['dia_corte'] ?? 5);
             if ($diaCorte < 1) $diaCorte = 1;
             if ($diaCorte > 31) $diaCorte = 31;
@@ -34,7 +34,7 @@ class ReporteController {
             $r['tiene_pagos'] = $totalPagos > 0;
             $r['ultimo_estado_pago'] = $ultimoEstadoPago;
             return $r;
-        }, $rows);
+        }, $rows);*/
 
         $data = [
             'title' => 'Reporte de Suscripciones - ' . APP_NAME,
@@ -144,7 +144,7 @@ class ReporteController {
         return $dt ? $dt->format('Y-m-d') : '';
     }
 
-    private function calcularVencimientoPorCorte($baseDate, $diaCorte) {
+    /* private function calcularVencimientoPorCorte($baseDate, $diaCorte) {
         $baseDate = trim((string)$baseDate);
         if ($baseDate === '') {
             return null;
@@ -173,7 +173,7 @@ class ReporteController {
         }
 
         return $candidate->format('Y-m-d');
-    }
+    } */
 
     private function loadView($view, $data = []) {
         extract($data);

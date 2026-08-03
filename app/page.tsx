@@ -100,7 +100,7 @@ async function createTables() {
         telefono VARCHAR(20),
         email VARCHAR(255),
         estado VARCHAR(20) DEFAULT 'activo' CHECK (estado IN ('activo', 'suspendido', 'pendiente')),
-        tipo_conexion VARCHAR(50) CHECK (tipo_conexion IN ('fibra_optica', 'inalambrica', 'cable_coaxial')),
+        tipo_conexion VARCHAR(50) CHECK (tipo_conexion IN ('fibra_optica', 'inalambrica', 'cableado_utp')),
         fecha_contratacion DATE DEFAULT CURRENT_DATE,
         plan_mensual DECIMAL(10,2),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -146,7 +146,7 @@ async function createTables() {
       INSERT INTO clientes (nombre, direccion, telefono, email, estado, tipo_conexion, plan_mensual) VALUES
       ('Juan Pérez', 'Calle 123 #45-67', '+57 300 123 4567', 'juan@email.com', 'activo', 'fibra_optica', 50000.00),
       ('María García', 'Carrera 89 #12-34', '+57 301 234 5678', 'maria@email.com', 'activo', 'inalambrica', 35000.00),
-      ('Carlos López', 'Avenida 56 #78-90', '+57 302 345 6789', 'carlos@email.com', 'suspendido', 'cable_coaxial', 40000.00)
+      ('Carlos López', 'Avenida 56 #78-90', '+57 302 345 6789', 'carlos@email.com', 'suspendido', 'cableado_utp', 40000.00)
       ON CONFLICT DO NOTHING
     `
 

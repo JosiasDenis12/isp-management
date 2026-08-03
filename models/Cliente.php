@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once 'core/SubscriptionStatus.php';
 
 class Cliente {
     private $conn;
@@ -24,6 +25,7 @@ class Cliente {
         $this->conn = $database->getConnection();
     }
 
+    /* Legacy helpers kept out of the business flow; use SubscriptionStatus. */
     private function calcularVencimientoPorCorte(?string $baseDate, int $diaCorte): ?string {
         $baseDate = trim((string)$baseDate);
         if ($baseDate === '') {
@@ -71,55 +73,22 @@ class Cliente {
     }
 
     private function obtenerResumenSuscripcion(array $row): array {
-        $diaCorte = (int)($row['dia_corte'] ?? 0);
-        if ($diaCorte < 1) {
-            $diaCorte = 1;
-        } elseif ($diaCorte > 31) {
-            $diaCorte = 31;
-        }
-
-        $fechaVencimiento = $row['ultima_fecha_vencimiento'] ?? null;
-        if (empty($fechaVencimiento)) {
-            $fechaVencimiento = $this->calcularVencimientoPorCorte($row['fecha_contratacion'] ?? null, $diaCorte);
-        }
-
-        $diasRestantes = $this->calcularDiasRestantes($fechaVencimiento);
+        $calculo = SubscriptionStatus::calcular($row['ultima_fecha_pago'] ?? null, $row['fecha_contratacion'] ?? null, (int)($row['dia_corte'] ?? 0));
+        $calculo['fecha_vencimiento_calc'] = $calculo['fecha_corte'];
         $totalPagos = (int)($row['total_pagos'] ?? 0);
-
-        $estado = 'sinpagos';
-        if ($fechaVencimiento !== null) {
-            if ($diasRestantes < 0) {
-                $estado = 'vencido';
-            } elseif ($diasRestantes === 0) {
-                $estado = 'vencehoy';
-            } elseif ($diasRestantes <= 7) {
-                $estado = 'porvencer';
-            } else {
-                $estado = 'aldia';
-            }
-        } elseif ($totalPagos > 0) {
-            $estado = 'aldia';
-        }
-
-        $monto = !empty($row['ultima_fecha_vencimiento'])
-            ? (float)($row['total_pagado'] ?? 0)
-            : (float)($row['plan_mensual'] ?? 0);
-
-        return [
+        $monto = (float)($row['plan_mensual'] ?? 0);
+        return array_merge($row, $calculo, [
             'id' => (int)($row['id'] ?? 0),
             'nombre' => (string)($row['nombre'] ?? ''),
             'telefono' => (string)($row['telefono'] ?? ''),
             'estado_cliente' => (string)($row['estado'] ?? ''),
-            'fecha_vencimiento' => $fechaVencimiento,
             'monto' => $monto,
             'numero_factura' => (string)($row['numero_factura'] ?? ''),
-            'dias' => $diasRestantes,
-            'dias_vencido' => $diasRestantes !== null && $diasRestantes < 0 ? abs($diasRestantes) : 0,
-            'dias_para_vencer' => $diasRestantes !== null && $diasRestantes >= 0 ? $diasRestantes : 0,
-            'estado_calculado' => $estado,
+            'dias' => $calculo['dias_para_pago'],
+            'dias_para_vencer' => $calculo['dias_para_pago'] !== null ? max(0, $calculo['dias_para_pago']) : null,
             'total_pagos' => $totalPagos,
             'plan_mensual' => (float)($row['plan_mensual'] ?? 0),
-        ];
+        ]);
     }
     
     public function getAll() {
@@ -127,6 +96,16 @@ class Cliente {
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getAllConEstadoSuscripcion(): array {
+        $estados = [];
+        foreach ($this->getResumenSuscripciones() as $row) $estados[(int)$row['id']] = $this->obtenerResumenSuscripcion($row);
+        return array_map(fn($cliente) => array_merge($cliente, $estados[(int)$cliente['id']] ?? SubscriptionStatus::calcular(null, $cliente['fecha_contratacion'] ?? null, (int)($cliente['dia_corte'] ?? 0))), $this->getAll());
+    }
+
+    public function enriquecerResumenSuscripciones(): array {
+        return array_map(fn($row) => $this->obtenerResumenSuscripcion($row), $this->getResumenSuscripciones());
     }
     
     public function getById($id) {
@@ -231,14 +210,14 @@ class Cliente {
         return $clientes;
     }
     
-    public function getClientesConPagosPorVencer($dias = 7) {
+    public function getClientesConPagosPorVencer($dias = SubscriptionStatus::DIAS_PROXIMO_VENCIMIENTO) {
         $dias = max(0, (int)$dias);
         $clientes = [];
 
         foreach ($this->getResumenSuscripciones() as $row) {
             $resumen = $this->obtenerResumenSuscripcion($row);
-            $diasRestantes = $resumen['dias'];
-            if ($diasRestantes === null || $diasRestantes < 0 || $diasRestantes > $dias) {
+            $diasRestantes = $resumen['dias_para_pago'];
+            if (($resumen['estado_calculado'] ?? '') !== 'porvencer' || $diasRestantes === null || $diasRestantes > $dias) {
                 continue;
             }
 
@@ -269,17 +248,17 @@ class Cliente {
 
         foreach ($this->getResumenSuscripciones() as $row) {
             $resumen = $this->obtenerResumenSuscripcion($row);
-            $diasRestantes = $resumen['dias'];
+            $diasRestantes = $resumen['dias_para_pago'];
 
             if ($diasRestantes === null) {
                 continue;
             }
 
-            if ($diasRestantes < 0) {
+            if (($resumen['estado_calculado'] ?? '') === 'vencido') {
                 $clientesVencidos++;
                 $montoTotalVencido += (float)$resumen['monto'];
                 $diasAtraso[] = abs($diasRestantes);
-            } elseif ($diasRestantes <= 7) {
+            } elseif (($resumen['estado_calculado'] ?? '') === 'porvencer') {
                 $clientesPorVencer++;
             }
         }
@@ -306,9 +285,7 @@ class Cliente {
                                         COALESCE(res.total_pagos, 0) as total_pagos,
                                         COALESCE(res.total_pagado, 0) as total_pagado,
                                         COALESCE(res.meses_pagados, 0) as meses_pagados,
-                                        ult.fecha_pago as ultima_fecha_pago,
-                                        ult.fecha_vencimiento as ultima_fecha_vencimiento,
-                                        ult.estado as ultimo_estado_pago
+                                        ult.fecha_pago as ultima_fecha_pago
                   FROM " . $this->table_name . " c
                   LEFT JOIN (
                     SELECT
@@ -320,13 +297,9 @@ class Cliente {
                     GROUP BY cliente_id
                                                                         ) res ON res.cliente_id = c.id
                                     LEFT JOIN (
-                                        SELECT p1.cliente_id, p1.fecha_pago, p1.fecha_vencimiento, p1.estado
-                                        FROM pagos p1
-                                        INNER JOIN (
-                                                SELECT cliente_id, MAX(id) AS max_id
-                                                FROM pagos
-                                                GROUP BY cliente_id
-                                        ) p2 ON p2.cliente_id = p1.cliente_id AND p2.max_id = p1.id
+                                        SELECT cliente_id, MAX(fecha_pago) AS fecha_pago
+                                        FROM pagos WHERE estado = 'pagado'
+                                        GROUP BY cliente_id
                                     ) ult ON ult.cliente_id = c.id
                                     ORDER BY c.nombre ASC";
 

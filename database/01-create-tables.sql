@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     telefono VARCHAR(20),
     email VARCHAR(255),
     estado ENUM('activo', 'suspendido', 'pendiente') DEFAULT 'activo',
-    tipo_conexion ENUM('fibra_optica', 'inalambrica', 'cable_coaxial'),
+    tipo_conexion ENUM('fibra_optica', 'inalambrica', 'cableado_utp'),
     fecha_contratacion DATE DEFAULT (CURRENT_DATE),
     dia_corte TINYINT UNSIGNED NOT NULL DEFAULT 5,
     plan_mensual DECIMAL(10,2),

@@ -140,9 +140,9 @@
                                         $tipoIcon = 'broadcast-tower';
                                         $tipoTexto = 'Inalámbrica';
                                         break;
-                                    case 'cable_coaxial':
+                                    case 'cableado_utp':
                                         $tipoIcon = 'ethernet';
-                                        $tipoTexto = 'Cableado (utp)';
+                                        $tipoTexto = 'Cableado (UTP)';
                                         break;
                                 }
                                 ?>

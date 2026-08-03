@@ -39,7 +39,7 @@ function getTipoConexionIcon(tipo: string) {
       return <Wifi className={`${iconClass} text-blue-500`} />
     case "inalambrica":
       return <Wifi className={`${iconClass} text-green-500`} />
-    case "cable_coaxial":
+    case "cableado_utp":
       return <Wifi className={`${iconClass} text-orange-500`} />
     default:
       return <Wifi className={iconClass} />

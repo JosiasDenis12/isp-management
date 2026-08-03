@@ -14,7 +14,7 @@ export interface Cliente {
   telefono: string
   email: string
   estado: "activo" | "suspendido" | "pendiente"
-  tipo_conexion: "fibra_optica" | "inalambrica" | "cable_coaxial"
+  tipo_conexion: "fibra_optica" | "inalambrica" | "cableado_utp"
   fecha_contratacion: string
   plan_mensual: number
   created_at: string

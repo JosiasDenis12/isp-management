@@ -75,7 +75,7 @@
                                 <option value="">Seleccionar...</option>
                                 <option value="fibra_optica">Fibra Óptica</option>
                                 <option value="inalambrica">Inalámbrica</option>
-                                <option value="cable_coaxial">Cableado (utp)</option>
+                                <option value="cableado_utp">Cableado (UTP)</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -95,7 +95,7 @@
 
                     <div class="mb-3">
                         <label for="dia_corte" class="form-label">Día de Corte *</label>
-                        <input type="number" class="form-control" id="dia_corte" name="dia_corte" min="1" max="31" value="5" required>
+                        <input type="number" class="form-control" id="dia_corte" name="dia_corte" min="0" max="31" value="5" required>
                         <div class="form-text">Día del mes en que vence el servicio (1-31). Si el mes no tiene ese día, se usa el último día del mes.</div>
                     </div>
                     

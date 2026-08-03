@@ -1,4 +1,5 @@
 <?php include 'views/layouts/header.php'; ?>
+<style>.client-card.client-card-vencido{border:2px solid #dc3545;background:#fff7f7}.billing-alert{border-radius:.5rem}</style>
 
 <?php
     $clientes = $clientes ?? [];
@@ -228,6 +229,8 @@
 
                 $tipoConexion = (string)($cliente['tipo_conexion'] ?? '');
                 $tipoConexionLabel = $tipoConexion !== '' ? ucwords(str_replace('_', ' ', $tipoConexion)) : '—';
+                $estadoSuscripcion = (string)($cliente['estado_calculado'] ?? 'sinpagos');
+                $esVencido = $estadoSuscripcion === 'vencido';
                 $planMensual = (float)($cliente['plan_mensual'] ?? 0);
                 $megasContratados = (int)($cliente['megas_contratados'] ?? 0);
             ?>
@@ -243,7 +246,7 @@
                 data-tipo="<?php echo htmlspecialchars($tipoConexion); ?>"
                 data-plan="<?php echo htmlspecialchars((string)$planMensual); ?>"
             >
-                <div class="card client-card h-100">
+                <div class="card client-card h-100 <?php echo $esVencido ? 'client-card-vencido' : ''; ?>">
                     <div class="card-body">
                         <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
                             <div class="d-flex align-items-center gap-3">
@@ -259,6 +262,7 @@
                                     <div class="client-status badge rounded-pill <?php echo $estadoClass; ?>">
                                         <?php echo htmlspecialchars($estadoLabel); ?>
                                     </div>
+                                    <?php if ($esVencido): ?><span class="badge bg-danger ms-1"><i class="fas fa-triangle-exclamation me-1"></i>Vencido</span><?php endif; ?>
                                 </div>
                             </div>
 
@@ -271,6 +275,15 @@
                                     <li><a class="dropdown-item" href="<?php echo url('clientes/' . ($cliente['id'] ?? '') . '/edit'); ?>"><i class="fas fa-pen me-2"></i>Editar</a></li>
                                     <li><a class="dropdown-item" href="<?php echo url('pagos?cliente=' . ($cliente['id'] ?? '')); ?>"><i class="fas fa-dollar-sign me-2"></i>Pagos</a></li>
                                 </ul>
+                            </div>
+                        </div>
+
+                        <div class="billing-alert mt-3 p-3 <?php echo $esVencido ? 'bg-danger-subtle text-danger' : ($estadoSuscripcion === 'porvencer' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-light'); ?>">
+                            <div class="row g-2 small">
+                                <div class="col-6"><strong>Último pago:</strong><br><?php echo !empty($cliente['fecha_ultimo_pago']) ? date('d/m/Y', strtotime($cliente['fecha_ultimo_pago'])) : 'Sin pagos'; ?></div>
+                                <div class="col-6"><strong>Próximo pago:</strong><br><?php echo !empty($cliente['proxima_fecha_pago']) ? date('d/m/Y', strtotime($cliente['proxima_fecha_pago'])) : '—'; ?></div>
+                                <div class="col-6"><strong>Fecha de corte:</strong><br><?php echo !empty($cliente['fecha_corte']) ? date('d/m/Y', strtotime($cliente['fecha_corte'])) : '—'; ?></div>
+                                <div class="col-6"><strong><?php echo $esVencido ? 'Venció hace:' : 'Restan:'; ?></strong><br><?php echo $esVencido ? (int)($cliente['dias_vencido'] ?? 0) . ' días' : (($cliente['dias_para_pago'] ?? null) !== null ? max(0, (int)$cliente['dias_para_pago']) . ' días' : '—'); ?></div>
                             </div>
                         </div>
 

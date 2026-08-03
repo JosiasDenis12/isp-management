@@ -76,7 +76,7 @@
                                 <option value="">Seleccionar...</option>
                                 <option value="fibra_optica" <?php echo $cliente['tipo_conexion'] === 'fibra_optica' ? 'selected' : ''; ?>>Fibra Óptica</option>
                                 <option value="inalambrica" <?php echo $cliente['tipo_conexion'] === 'inalambrica' ? 'selected' : ''; ?>>Inalámbrica</option>
-                                <option value="cable_coaxial" <?php echo $cliente['tipo_conexion'] === 'cable_coaxial' ? 'selected' : ''; ?>>Cableado (utp)</option>
+                                <option value="cableado_utp" <?php echo $cliente['tipo_conexion'] === 'cableado_utp' ? 'selected' : ''; ?>>Cableado (UTP)</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -98,7 +98,7 @@
 
                     <div class="mb-3">
                         <label for="dia_corte" class="form-label">Día de Corte *</label>
-                        <input type="number" class="form-control" id="dia_corte" name="dia_corte" min="1" max="31"
+                        <input type="number" class="form-control" id="dia_corte" name="dia_corte" min="0" max="31"
                                value="<?php echo htmlspecialchars($cliente['dia_corte'] ?? 5); ?>" required>
                         <div class="form-text">Día del mes en que vence el servicio (1-31). Si el mes no tiene ese día, se usa el último día del mes.</div>
                     </div>

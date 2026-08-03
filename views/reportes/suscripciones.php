@@ -268,13 +268,13 @@
                         $ultimoEstadoPago = (string)($r['ultimo_estado_pago'] ?? '');
                         $tienePagos = (int)($r['total_pagos'] ?? 0) > 0;
 
-                        $diasRestantes = null;
+                        $diasRestantes = $r['dias_para_pago'] ?? null;
                         $diaCorte = (int)($r['dia_corte'] ?? 0);
-                        if (!empty($fechaVenc)) {
+                        /*if (!empty($fechaVenc)) {
                             $hoy = new DateTime(date('Y-m-d'));
                             $venc = new DateTime(date('Y-m-d', strtotime($fechaVenc)));
                             $diasRestantes = (int)$hoy->diff($venc)->format('%r%a');
-                        }
+                        }*/
 
                         $badgeDias = 'bg-secondary';
                         if ($diasRestantes !== null) {
@@ -288,12 +288,16 @@
                         $statusBadge = 'bg-secondary';
                         $rowClass = '';
 
-                            if ($tienePagos && $ultimoEstadoPago === 'pagado') {
+                            if (false) {
                                 $statusKey = 'aldia';
                                 $statusTxt = 'Al día';
                                 $statusBadge = 'bg-success';
                                 $rowClass = 'sus-row-aldia';
                                 $diasRestantes = null;
+                            } elseif (($r['estado_calculado'] ?? '') === 'vencido') {
+                                $statusKey = 'vencido'; $statusTxt = 'Vencido'; $statusBadge = 'bg-danger'; $rowClass = 'sus-row-vencido';
+                            } elseif (($r['estado_calculado'] ?? '') === 'porvencer') {
+                                $statusKey = 'porvencer'; $statusTxt = 'Próximo a vencer'; $statusBadge = 'bg-warning text-dark'; $rowClass = 'sus-row-porvencer';
                             } elseif ($diasRestantes !== null) {
                                 if ($diasRestantes < 0) {
                                     $statusKey = 'vencido';

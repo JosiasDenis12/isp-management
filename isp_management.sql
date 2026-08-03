@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `clientes` (
   `telefono` varchar(20) DEFAULT NULL,
   `email` varchar(255) DEFAULT NULL,
   `estado` enum('activo','suspendido','pendiente') DEFAULT 'activo',
-  `tipo_conexion` enum('fibra_optica','inalambrica','cable_coaxial') DEFAULT NULL,
+  `tipo_conexion` enum('fibra_optica','inalambrica','cableado_utp') DEFAULT NULL,
   `fecha_contratacion` date DEFAULT (curdate()),
   `dia_corte` tinyint unsigned NOT NULL DEFAULT '5',
   `plan_mensual` decimal(10,2) DEFAULT NULL,

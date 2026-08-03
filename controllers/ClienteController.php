@@ -5,7 +5,7 @@ class ClienteController {
     
     public function index() {
         $clienteModel = new Cliente();
-        $clientes = $clienteModel->getAll();
+        $clientes = $clienteModel->getAllConEstadoSuscripcion();
         
         $data = [
             'title' => 'Gestión de Clientes - ' . APP_NAME,
@@ -47,7 +47,7 @@ class ClienteController {
                     $clienteModel->plan_mensual = $_POST['plan_mensual'];
                     $clienteModel->megas_contratados = (int)($_POST['megas_contratados'] ?? 0);
 
-                    if ($clienteModel->dia_corte < 1 || $clienteModel->dia_corte > 31) {
+                    if ($clienteModel->dia_corte < 0 || $clienteModel->dia_corte > 31) {
                         $error = 'El día de corte debe estar entre 1 y 31';
                         throw new Exception($error);
                     }
@@ -147,7 +147,7 @@ class ClienteController {
                     $clienteModel->plan_mensual = $_POST['plan_mensual'];
                     $clienteModel->megas_contratados = (int)($_POST['megas_contratados'] ?? 0);
 
-                    if ($clienteModel->dia_corte < 1 || $clienteModel->dia_corte > 31) {
+                    if ($clienteModel->dia_corte < 0 || $clienteModel->dia_corte > 31) {
                         $error = 'El día de corte debe estar entre 1 y 31';
                         throw new Exception($error);
                     }

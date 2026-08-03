@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     telefono VARCHAR(20),
     email VARCHAR(255),
     estado VARCHAR(20) DEFAULT 'activo' CHECK (estado IN ('activo', 'suspendido', 'pendiente')),
-    tipo_conexion VARCHAR(50) CHECK (tipo_conexion IN ('fibra_optica', 'inalambrica', 'cable_coaxial')),
+    tipo_conexion VARCHAR(50) CHECK (tipo_conexion IN ('fibra_optica', 'inalambrica', 'cableado_utp')),
     fecha_contratacion DATE DEFAULT CURRENT_DATE,
     plan_mensual DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

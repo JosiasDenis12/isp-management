@@ -38,7 +38,7 @@ class PagoController {
             $pagoModel->cliente_id = $_POST['cliente_id'];
             $pagoModel->monto = $_POST['monto'];
             $pagoModel->fecha_pago = $_POST['fecha_pago'];
-            $pagoModel->fecha_vencimiento = $_POST['fecha_vencimiento'];
+            $pagoModel->fecha_vencimiento = null; // Se deriva en el modelo.
             $pagoModel->metodo_pago = $_POST['metodo_pago'];
             $pagoModel->estado = $_POST['estado'];
             $pagoModel->numero_factura = $pagoModel->generateFacturaNumber();

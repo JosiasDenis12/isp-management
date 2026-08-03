@@ -2,12 +2,12 @@
 INSERT INTO clientes (nombre, direccion, telefono, email, estado, tipo_conexion, plan_mensual) VALUES
 ('Juan Pérez', 'Calle 123 #45-67', '+57 300 123 4567', 'juan@email.com', 'activo', 'fibra_optica', 50000.00),
 ('María García', 'Carrera 89 #12-34', '+57 301 234 5678', 'maria@email.com', 'activo', 'inalambrica', 35000.00),
-('Carlos López', 'Avenida 56 #78-90', '+57 302 345 6789', 'carlos@email.com', 'suspendido', 'cable_coaxial', 40000.00),
+('Carlos López', 'Avenida 56 #78-90', '+57 302 345 6789', 'carlos@email.com', 'suspendido', 'cableado_utp', 40000.00),
 ('Ana Martínez', 'Calle 34 #56-78', '+57 303 456 7890', 'ana@email.com', 'activo', 'fibra_optica', 60000.00),
 ('Luis Rodríguez', 'Carrera 12 #34-56', '+57 304 567 8901', 'luis@email.com', 'pendiente', 'inalambrica', 30000.00),
 ('Carmen Jiménez', 'Transversal 15 #20-30', '+57 305 678 9012', 'carmen@email.com', 'activo', 'fibra_optica', 45000.00),
 ('Roberto Silva', 'Diagonal 25 #40-50', '+57 306 789 0123', 'roberto@email.com', 'activo', 'inalambrica', 38000.00),
-('Patricia Morales', 'Calle 67 #89-01', '+57 307 890 1234', 'patricia@email.com', 'pendiente', 'cable_coaxial', 42000.00)
+('Patricia Morales', 'Calle 67 #89-01', '+57 307 890 1234', 'patricia@email.com', 'pendiente', 'cableado_utp', 42000.00)
 ON CONFLICT DO NOTHING;
 
 -- Insertar datos de ejemplo en pagos
