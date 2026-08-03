@@ -284,7 +284,6 @@ function reporteFecha($value, $format = 'd/m/Y H:i') {
                 </div>
                 <div class="small text-muted">Trabajos realizados por visita, equipo, cliente y responsable.</div>
             </div>
-            <div class="small text-muted">Evidencias: se mostrará “Sin adjuntos” mientras no exista módulo de archivos.</div>
         </div>
     </div>
     <div class="card-body p-0">
@@ -299,7 +298,6 @@ function reporteFecha($value, $format = 'd/m/Y H:i') {
                         <th>Tipo servicio</th>
                         <th>Técnico</th>
                         <th>Actividades / observaciones</th>
-                        <th>Evidencias</th>
                         <th>Estado visita</th>
                         <th>Seguimiento</th>
                         <th>Acciones</th>
@@ -347,7 +345,6 @@ function reporteFecha($value, $format = 'd/m/Y H:i') {
                                     <?php echo htmlspecialchars($actividadTxt); ?>
                                 </div>
                             </td>
-                            <td><span class="text-muted">Sin adjuntos</span></td>
                             <td>
                                 <span class="badge <?php echo htmlspecialchars(reporteBadgeVisita($estadoVisita)); ?>">
                                     <?php echo htmlspecialchars($estadoVisitaLabels[$estadoVisita] ?? ucfirst(str_replace('_', ' ', $estadoVisita))); ?>
