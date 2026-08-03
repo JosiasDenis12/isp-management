@@ -17,6 +17,18 @@
             </a>
         </div>
         <div class="btn-group">
+            <a href="<?php echo url('equipos/create?cliente_id=' . (int)$equipo['cliente_id'] . '&fecha_instalacion=' . urlencode($equipo['fecha_instalacion'] ?? date('Y-m-d'))); ?>" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>
+                Registrar otro
+            </a>
+            <a href="<?php echo url('equipos/' . $equipo['id'] . '/edit'); ?>" class="btn btn-outline-primary">
+                <i class="fas fa-pen me-1"></i>
+                Editar
+            </a>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminarEquipoModal">
+                <i class="fas fa-trash me-1"></i>
+                Eliminar
+            </button>
             <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#programarMantenimientoModal">
                 <i class="fas fa-calendar-plus me-1"></i>
                 Programar Mantenimiento
@@ -82,6 +94,10 @@
                             <tr>
                                 <td><strong>Cliente:</strong></td>
                                 <td><?php echo htmlspecialchars($equipo['cliente_nombre']); ?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Instalación:</strong></td>
+                                <td><?php echo !empty($equipo['instalacion_id']) ? 'Instalación #' . (int)$equipo['instalacion_id'] : '<span class="text-muted">Registro individual</span>'; ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Tipo de Equipo:</strong></td>
@@ -423,6 +439,28 @@
     color: #6c757d;
 }
 </style>
+
+<!-- Confirmación de eliminación -->
+<div class="modal fade" id="eliminarEquipoModal" tabindex="-1" aria-labelledby="eliminarEquipoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="eliminarEquipoLabel"><i class="fas fa-triangle-exclamation text-danger me-2"></i>Eliminar equipo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <p class="mb-1">¿Seguro que deseas eliminar <strong><?php echo htmlspecialchars($equipo['marca'] . ' ' . $equipo['modelo']); ?></strong>?</p>
+                <p class="small text-muted mb-0">Esta acción eliminará el equipo del inventario y no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="POST" action="<?php echo url('equipos/' . $equipo['id'] . '/delete'); ?>">
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-1"></i>Eliminar equipo</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Modal Programar Mantenimiento -->
 <div class="modal fade" id="programarMantenimientoModal" tabindex="-1" aria-labelledby="programarMantenimientoLabel" aria-hidden="true">

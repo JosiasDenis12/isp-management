@@ -1,435 +1,53 @@
 <?php include 'views/layouts/header.php'; ?>
-
 <?php
-$rows = $rows ?? [];
-$stats = $stats ?? [];
-$filters = $filters ?? [];
-
-$tipoLabels = [
-    'antena' => 'Antena',
-    'modem' => 'Módem',
-    'router' => 'Router',
-    'switch' => 'Switch',
-    'access_point' => 'Access Point',
-    'otro' => 'Otro',
-];
-
-$estadoLabels = [
-    'operativo' => 'Operativo',
-    'necesita_revision' => 'Necesita revisión',
-    'dañado' => 'Dañado',
-    'fuera_de_servicio' => 'Fuera de servicio',
-    'en_mantenimiento' => 'En mantenimiento',
-];
-
-function equipoReportDate($value) {
-    if (empty($value)) return '-';
-    $ts = strtotime($value);
-    return $ts ? date('d/m/Y', $ts) : '-';
-}
-
-function equipoReportBadge($estado) {
-    switch ($estado) {
-        case 'operativo': return 'bg-success';
-        case 'necesita_revision': return 'bg-warning text-dark';
-        case 'dañado': return 'bg-danger';
-        case 'fuera_de_servicio': return 'bg-dark';
-        case 'en_mantenimiento': return 'bg-info';
-        default: return 'bg-secondary';
-    }
-}
+$rows = $rows ?? []; $stats = $stats ?? []; $filters = $filters ?? [];
+$tipos = ['antena' => ['Antena','fa-satellite-dish','primary'], 'modem' => ['Módem','fa-ethernet','success'], 'switch' => ['Switch','fa-network-wired','warning'], 'access_point' => ['Access Point','fa-tower-broadcast','purple'], 'router' => ['Router','fa-wifi','info'], 'otro' => ['Otro','fa-microchip','secondary']];
+$estados = ['operativo' => ['Operativo','success'], 'en_mantenimiento' => ['En mantenimiento','warning'], 'necesita_revision' => ['Necesita revisión','primary'], 'fuera_de_servicio' => ['Fuera de servicio','danger'], 'dañado' => ['Dañado','danger']];
+$porCliente = [];
+foreach ($rows as $row) { $porCliente[(int)$row['cliente_id']][] = $row; }
+function repFecha($value, $withTime = false) { $ts = $value ? strtotime($value) : false; return $ts ? date($withTime ? 'd/m/Y H:i' : 'd/m/Y', $ts) : '—'; }
+function repEquipoNombre($row) { $name = trim(($row['marca'] ?? '') . ' ' . ($row['modelo'] ?? '')); return $name ?: 'Equipo #' . (int)$row['id']; }
 ?>
-
 <style>
-    .rep-page-header {
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-    }
-    .rep-page-header .rep-title {
-        font-weight: 700;
-        letter-spacing: -0.2px;
-    }
-    .rep-page-header .rep-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 14px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        background: linear-gradient(135deg, #2563eb 0%, #16a34a 100%);
-        box-shadow: 0 10px 22px rgba(37, 99, 235, 0.24);
-    }
-    .soft-card {
-        border: 1px solid rgba(15, 23, 42, 0.06);
-    }
-    .report-table thead th {
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: #fff;
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-        white-space: nowrap;
-    }
-    .report-table td {
-        vertical-align: middle;
-    }
-    .report-table tbody tr:hover {
-        background: #f8fafc;
-    }
-    @media print {
-        .sidebar, .app-topbar, .rep-actions, .rep-filters, .btn, .modal {
-            display: none !important;
-        }
-        main {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        .card {
-            break-inside: avoid;
-            box-shadow: none !important;
-        }
-        .report-table {
-            font-size: 11px;
-        }
-    }
+.equipos-report-header{margin:1.25rem 0}.report-hero-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#2563eb,#0ea5e9);box-shadow:0 12px 24px rgba(37,99,235,.24)}
+.kpi-card{border:1px solid rgba(15,23,42,.06);border-radius:16px;transition:transform .2s,box-shadow .2s}.kpi-card:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(15,23,42,.09)}.kpi-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:#64748b}.kpi-value{font-weight:800;font-size:1.5rem;color:#0f172a}
+.client-accordion{border:1px solid rgba(15,23,42,.08);border-radius:16px;overflow:hidden;box-shadow:0 3px 12px rgba(15,23,42,.04)}.client-accordion+.client-accordion{margin-top:1rem}.client-toggle{width:100%;border:0;background:#fff;text-align:left;padding:1.1rem 1.25rem}.client-toggle:hover{background:#f8fafc}.client-toggle:not(.collapsed){background:#f8fbff;box-shadow:none}.client-toggle:focus{box-shadow:inset 0 0 0 2px rgba(37,99,235,.25)}.client-toggle::after{margin-left:1rem}.client-avatar{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:#dbeafe;color:#1d4ed8;font-weight:800}.client-name{font-size:1rem;font-weight:800;color:#0f172a}.client-summary{font-size:.79rem;color:#64748b}.type-badge{font-size:.72rem;font-weight:700;padding:.35rem .55rem;border-radius:999px}.type-primary{background:#dbeafe;color:#1d4ed8}.type-success{background:#dcfce7;color:#15803d}.type-warning{background:#fef3c7;color:#a16207}.type-purple{background:#f3e8ff;color:#7e22ce}.type-info{background:#cffafe;color:#0e7490}.type-secondary{background:#e2e8f0;color:#475569}.estado-badge{font-size:.72rem;border-radius:999px;padding:.35rem .55rem}.client-table{font-size:.86rem}.client-table thead th{font-size:.67rem;text-transform:uppercase;letter-spacing:.07em;color:#64748b;background:#f8fafc;white-space:nowrap}.client-table td{vertical-align:middle}.client-table tbody tr{cursor:pointer;transition:background .16s}.client-table tbody tr:hover{background:#eff6ff}.equipment-icon{width:30px;height:30px;border-radius:9px;display:inline-grid;place-items:center}.wifi-on{color:#16a34a}.wifi-off{color:#94a3b8}.filter-card{border:1px solid rgba(15,23,42,.07);border-radius:16px}.table-responsive{max-height:480px}.accordion-body{background:#fff}@media print{.sidebar,.app-topbar,.report-actions,.filter-card{display:none!important}main{width:100%!important;max-width:100%!important}.collapse{display:block!important}}
 </style>
 
-<div class="rep-page-header d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3">
-    <div class="d-flex align-items-start gap-3">
-        <div class="rep-icon flex-shrink-0">
-            <i class="fas fa-router"></i>
-        </div>
-        <div>
-            <h1 class="rep-title h3 mb-1">Reporte de Equipos Instalados</h1>
-            <div class="text-muted">Consulta antenas y módems instalados con credenciales, red, estado y cliente asociado.</div>
-        </div>
-    </div>
-    <div class="rep-actions d-flex flex-wrap gap-2">
-        <a href="<?php echo url('reportes'); ?>" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i>
-            Volver
-        </a>
-        <button type="button" class="btn btn-outline-secondary" id="printReportBtn">
-            <i class="fas fa-file-pdf me-1"></i>
-            Imprimir / PDF
-        </button>
-        <button type="button" class="btn btn-outline-primary" id="exportCsvBtn">
-            <i class="fas fa-file-csv me-1"></i>
-            Exportar CSV
-        </button>
-    </div>
+<div class="equipos-report-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+ <div class="d-flex align-items-center gap-3"><div class="report-hero-icon"><i class="fas fa-router"></i></div><div><h1 class="h3 mb-1 fw-bold">Equipos instalados</h1><p class="text-muted mb-0">Inventario organizado por cliente e instalación.</p></div></div>
+ <div class="report-actions d-flex gap-2"><a href="<?php echo url('reportes'); ?>" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Volver</a><button class="btn btn-outline-secondary" onclick="window.print()"><i class="fas fa-print me-1"></i>Imprimir</button></div>
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-6 col-lg-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="small text-white-50">Equipos</div>
-                <div class="h3 mb-0"><?php echo (int)($stats['total'] ?? 0); ?></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="card stats-card success">
-            <div class="card-body">
-                <div class="small text-white-50">Antenas</div>
-                <div class="h3 mb-0"><?php echo (int)($stats['antenas'] ?? 0); ?></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="card stats-card warning">
-            <div class="card-body">
-                <div class="small text-white-50">Módems</div>
-                <div class="h3 mb-0"><?php echo (int)($stats['modems'] ?? 0); ?></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="card stats-card danger">
-            <div class="card-body">
-                <div class="small text-white-50">Accesos activos</div>
-                <div class="h3 mb-0"><?php echo (int)($stats['acceso_activo'] ?? 0); ?></div>
-            </div>
-        </div>
-    </div>
+<?php foreach ([['Clientes',$stats['clientes'] ?? 0,'fa-users','primary'],['Equipos',$stats['total'] ?? 0,'fa-cubes','info'],['Antenas',$stats['antenas'] ?? 0,'fa-satellite-dish','primary'],['Módems',$stats['modems'] ?? 0,'fa-ethernet','success'],['Switches',$stats['switches'] ?? 0,'fa-network-wired','warning'],['Access Points',$stats['access_points'] ?? 0,'fa-tower-broadcast','purple'],['Operativos',$stats['operativos'] ?? 0,'fa-circle-check','success'],['Mantenimiento',$stats['mantenimiento'] ?? 0,'fa-screwdriver-wrench','warning'],['Fuera de servicio',$stats['fuera_servicio'] ?? 0,'fa-circle-xmark','danger']] as $kpi): ?>
+ <div class="col-6 col-md-4 col-xl"><div class="card kpi-card h-100"><div class="card-body p-3"><div class="d-flex justify-content-between align-items-start"><div><div class="kpi-label"><?php echo $kpi[0]; ?></div><div class="kpi-value mt-1"><?php echo (int)$kpi[1]; ?></div></div><i class="fas <?php echo $kpi[2]; ?> text-<?php echo $kpi[3] === 'purple' ? 'primary' : $kpi[3]; ?>"></i></div></div></div></div>
+<?php endforeach; ?>
 </div>
 
-<div class="card soft-card rep-filters mb-3">
-    <div class="card-header bg-white">
-        <div class="fw-semibold">
-            <i class="fas fa-filter me-2 text-primary"></i>
-            Filtros
-        </div>
-    </div>
-    <div class="card-body">
-        <form method="GET" action="<?php echo url('reportes/equipos-instalados'); ?>">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-4 col-lg-3">
-                    <label class="form-label small text-muted">Cliente</label>
-                    <input type="search" class="form-control" name="cliente" value="<?php echo htmlspecialchars($filters['cliente'] ?? ''); ?>" placeholder="Nombre o teléfono">
-                </div>
-                <div class="col-md-4 col-lg-2">
-                    <label class="form-label small text-muted">Tipo</label>
-                    <select class="form-select" name="tipo_equipo">
-                        <option value="">Todos</option>
-                        <option value="antena" <?php echo (($filters['tipo_equipo'] ?? '') === 'antena') ? 'selected' : ''; ?>>Antena</option>
-                        <option value="modem" <?php echo (($filters['tipo_equipo'] ?? '') === 'modem') ? 'selected' : ''; ?>>Módem</option>
-                        <option value="router" <?php echo (($filters['tipo_equipo'] ?? '') === 'router') ? 'selected' : ''; ?>>Router</option>
-                        <option value="switch" <?php echo (($filters['tipo_equipo'] ?? '') === 'switch') ? 'selected' : ''; ?>>Switch</option>
-                        <option value="access_point" <?php echo (($filters['tipo_equipo'] ?? '') === 'access_point') ? 'selected' : ''; ?>>Access Point</option>
-                        <option value="otro" <?php echo (($filters['tipo_equipo'] ?? '') === 'otro') ? 'selected' : ''; ?>>Otro</option>
-                    </select>
-                </div>
-                <div class="col-md-4 col-lg-2">
-                    <label class="form-label small text-muted">Estado</label>
-                    <select class="form-select" name="estado_tecnico">
-                        <option value="">Todos</option>
-                        <?php foreach ($estadoLabels as $value => $label): ?>
-                            <option value="<?php echo htmlspecialchars($value); ?>" <?php echo (($filters['estado_tecnico'] ?? '') === $value) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($label); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-4 col-lg-2">
-                    <label class="form-label small text-muted">MAC Address</label>
-                    <input type="search" class="form-control" name="mac_address" value="<?php echo htmlspecialchars($filters['mac_address'] ?? ''); ?>" placeholder="AA:BB">
-                </div>
-                <div class="col-md-4 col-lg-2">
-                    <label class="form-label small text-muted">Dirección IP</label>
-                    <input type="search" class="form-control" name="direccion_ip" value="<?php echo htmlspecialchars($filters['direccion_ip'] ?? ''); ?>" placeholder="192.168">
-                </div>
-                <div class="col-md-4 col-lg-2">
-                    <label class="form-label small text-muted">Desde</label>
-                    <input type="date" class="form-control" name="fecha_desde" value="<?php echo htmlspecialchars($filters['fecha_desde'] ?? ''); ?>">
-                </div>
-                <div class="col-md-4 col-lg-2">
-                    <label class="form-label small text-muted">Hasta</label>
-                    <input type="date" class="form-control" name="fecha_hasta" value="<?php echo htmlspecialchars($filters['fecha_hasta'] ?? ''); ?>">
-                </div>
-                <div class="col-md-4 col-lg-2">
-                    <label class="form-label small text-muted">Orden fecha</label>
-                    <select class="form-select" name="orden_fecha">
-                        <option value="desc" <?php echo (($filters['orden_fecha'] ?? 'desc') === 'desc') ? 'selected' : ''; ?>>Más recientes</option>
-                        <option value="asc" <?php echo (($filters['orden_fecha'] ?? '') === 'asc') ? 'selected' : ''; ?>>Más antiguas</option>
-                    </select>
-                </div>
-                <div class="col-md-12 col-lg-4">
-                    <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-magnifying-glass me-1"></i>
-                            Filtrar
-                        </button>
-                        <a href="<?php echo url('reportes/equipos-instalados'); ?>" class="btn btn-outline-secondary">
-                            <i class="fas fa-rotate me-1"></i>
-                            Restablecer
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
+<div class="card filter-card mb-3"><div class="card-body"><form method="GET" action="<?php echo url('reportes/equipos-instalados'); ?>"><div class="row g-2 align-items-end">
+ <div class="col-md-4 col-lg-3"><label class="form-label small">Buscar cliente</label><input class="form-control" name="cliente" value="<?php echo htmlspecialchars($filters['cliente'] ?? ''); ?>" placeholder="Nombre o teléfono"></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">MAC</label><input class="form-control" name="mac_address" value="<?php echo htmlspecialchars($filters['mac_address'] ?? ''); ?>" placeholder="AA:BB:CC"></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">IP</label><input class="form-control" name="direccion_ip" value="<?php echo htmlspecialchars($filters['direccion_ip'] ?? ''); ?>" placeholder="192.168..."></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">N.º de serie</label><input class="form-control" name="numero_serie" value="<?php echo htmlspecialchars($filters['numero_serie'] ?? ''); ?>"></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">Tipo</label><select class="form-select" name="tipo_equipo"><option value="">Todos</option><?php foreach($tipos as $key=>$tipo): ?><option value="<?php echo $key; ?>" <?php echo ($filters['tipo_equipo'] ?? '') === $key ? 'selected' : ''; ?>><?php echo $tipo[0]; ?></option><?php endforeach; ?></select></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">Estado técnico</label><select class="form-select" name="estado_tecnico"><option value="">Todos</option><?php foreach($estados as $key=>$estado): ?><option value="<?php echo $key; ?>" <?php echo ($filters['estado_tecnico'] ?? '') === $key ? 'selected' : ''; ?>><?php echo $estado[0]; ?></option><?php endforeach; ?></select></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">Acceso módem</label><select class="form-select" name="estado_acceso"><option value="">Todos</option><option value="activo" <?php echo ($filters['estado_acceso'] ?? '') === 'activo' ? 'selected' : ''; ?>>WiFi encendido</option><option value="inactivo" <?php echo ($filters['estado_acceso'] ?? '') === 'inactivo' ? 'selected' : ''; ?>>WiFi apagado</option></select></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">Instalado desde</label><input type="date" class="form-control" name="fecha_desde" value="<?php echo htmlspecialchars($filters['fecha_desde'] ?? ''); ?>"></div>
+ <div class="col-md-4 col-lg-2"><label class="form-label small">Hasta</label><input type="date" class="form-control" name="fecha_hasta" value="<?php echo htmlspecialchars($filters['fecha_hasta'] ?? ''); ?>"></div>
+ <div class="col-md-4 col-lg-2 d-flex gap-2"><button class="btn btn-primary flex-grow-1"><i class="fas fa-filter me-1"></i>Filtrar</button><a class="btn btn-outline-secondary" href="<?php echo url('reportes/equipos-instalados'); ?>" title="Restablecer"><i class="fas fa-rotate"></i></a></div>
+</div></form></div></div>
+
+<div class="d-flex align-items-center justify-content-between mb-2"><div><h2 class="h5 mb-0 fw-bold">Clientes con equipos</h2><span class="small text-muted"><?php echo count($porCliente); ?> clientes · <?php echo count($rows); ?> equipos encontrados</span></div></div>
+<div class="accordion" id="clientesEquiposAccordion">
+<?php foreach ($porCliente as $clienteId => $equipos): $primero=$equipos[0]; $counts=['operativo'=>0,'en_mantenimiento'=>0,'fuera_de_servicio'=>0]; $tiposCliente=[]; foreach($equipos as $item){$estado=$item['estado_tecnico']??''; if(isset($counts[$estado]))$counts[$estado]++; $tiposCliente[$item['tipo_equipo']??'otro']=true;} ?>
+ <div class="client-accordion"><h2 class="accordion-header" id="clienteHeading<?php echo $clienteId; ?>"><button class="client-toggle accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#cliente<?php echo $clienteId; ?>" aria-expanded="false" aria-controls="cliente<?php echo $clienteId; ?>"><span class="client-avatar me-3"><?php echo htmlspecialchars(strtoupper(substr($primero['cliente_nombre'] ?? 'C',0,1))); ?></span><span class="flex-grow-1"><span class="client-name d-block"><?php echo htmlspecialchars($primero['cliente_nombre'] ?? 'Cliente'); ?></span><span class="client-summary"><?php echo count($equipos); ?> equipos · <?php echo $counts['operativo']; ?> operativos · <?php echo $counts['en_mantenimiento']; ?> en mantenimiento · <?php echo $counts['fuera_de_servicio']; ?> fuera de servicio</span></span><span class="d-none d-md-flex gap-1 flex-wrap me-2"><?php foreach(array_keys($tiposCliente) as $tipoKey): $tipo=$tipos[$tipoKey]??$tipos['otro']; ?><span class="type-badge type-<?php echo $tipo[2]; ?>"><i class="fas <?php echo $tipo[1]; ?> me-1"></i><?php echo $tipo[0]; ?></span><?php endforeach; ?></span></button></h2>
+ <div id="cliente<?php echo $clienteId; ?>" class="accordion-collapse collapse" aria-labelledby="clienteHeading<?php echo $clienteId; ?>" data-bs-parent="#clientesEquiposAccordion"><div class="accordion-body p-0"><div class="table-responsive"><table class="table client-table mb-0"><thead><tr><th class="ps-3">Tipo / equipo</th><th>Marca / modelo</th><th>Serie</th><th>MAC / IP</th><th>Instalación</th><th>Estado técnico</th><th>Acceso</th><th>Actualizado</th><th class="text-end pe-3">Acciones</th></tr></thead><tbody>
+ <?php foreach($equipos as $equipo): $tipoKey=$equipo['tipo_equipo']??'otro'; $tipo=$tipos[$tipoKey]??$tipos['otro']; $estado=$estados[$equipo['estado_tecnico']??'']??['Sin estado','secondary']; ?>
+ <tr data-href="<?php echo url('equipos/' . (int)$equipo['id']); ?>" tabindex="0" role="link" aria-label="Ver <?php echo htmlspecialchars(repEquipoNombre($equipo)); ?>"><td class="ps-3"><span class="equipment-icon type-<?php echo $tipo[2]; ?> me-2"><i class="fas <?php echo $tipo[1]; ?>"></i></span><span class="fw-semibold"><?php echo $tipo[0]; ?></span><div class="small text-muted ms-5"><?php echo htmlspecialchars(repEquipoNombre($equipo)); ?></div></td><td><?php echo htmlspecialchars($equipo['marca'] ?: '—'); ?><div class="small text-muted"><?php echo htmlspecialchars($equipo['modelo'] ?: ''); ?></div></td><td><code><?php echo htmlspecialchars($equipo['numero_serie'] ?: '—'); ?></code></td><td><div><?php echo htmlspecialchars($equipo['mac_address'] ?: '—'); ?></div><div class="small text-muted"><?php echo htmlspecialchars($equipo['direccion_ip'] ?: ''); ?></div></td><td><?php echo repFecha($equipo['fecha_instalacion']); ?></td><td><span class="badge bg-<?php echo $estado[1]; ?> estado-badge"><?php echo $estado[0]; ?></span></td><td><?php if($tipoKey==='modem'): ?><span title="<?php echo !empty($equipo['acceso_habilitado'])?'WiFi encendido':'WiFi apagado'; ?>"><i class="fas fa-wifi <?php echo !empty($equipo['acceso_habilitado'])?'wifi-on':'wifi-off'; ?> me-1"></i><?php echo !empty($equipo['acceso_habilitado'])?'Activo':'Apagado'; ?></span><?php else: ?>—<?php endif; ?></td><td><?php echo repFecha($equipo['updated_at'],true); ?></td><td class="text-end pe-3"><a class="btn btn-sm btn-outline-primary row-action" href="<?php echo url('equipos/' . (int)$equipo['id']); ?>" title="Ver detalle"><i class="fas fa-arrow-up-right-from-square"></i></a></td></tr>
+ <?php endforeach; ?></tbody></table></div></div></div></div>
+<?php endforeach; ?>
 </div>
-
-<div class="card soft-card">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <div>
-            <div class="fw-semibold">
-                <i class="fas fa-table me-2 text-primary"></i>
-                Equipos instalados
-            </div>
-            <div class="small text-muted"><?php echo count($rows); ?> registros encontrados</div>
-        </div>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-sm align-middle mb-0 report-table" id="equiposInstaladosTable">
-                <thead class="table-light">
-                    <tr>
-                        <th>Cliente</th>
-                        <th>Tipo</th>
-                        <th>Equipo</th>
-                        <th>MAC</th>
-                        <th>IP</th>
-                        <th>SSID</th>
-                        <th>Usuario</th>
-                        <th>Contraseña</th>
-                        <th>Acceso</th>
-                        <th>Fecha instalación</th>
-                        <th>Estado</th>
-                        <th>Detalle</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($rows as $row): ?>
-                        <?php
-                        $tipo = (string)($row['tipo_equipo'] ?? '');
-                        $estado = (string)($row['estado_tecnico'] ?? '');
-                        $equipoTxt = trim(($row['marca'] ?? '') . ' ' . ($row['modelo'] ?? ''));
-                        if ($equipoTxt === '') $equipoTxt = 'Equipo #' . (int)($row['id'] ?? 0);
-                        $detalle = [
-                            'Cliente' => $row['cliente_nombre'] ?? '',
-                            'Telefono' => $row['cliente_telefono'] ?? '',
-                            'Tipo' => $tipoLabels[$tipo] ?? ucfirst(str_replace('_', ' ', $tipo)),
-                            'Equipo' => $equipoTxt,
-                            'Serie' => $row['numero_serie'] ?? '',
-                            'MAC' => $row['mac_address'] ?? '',
-                            'IP' => $row['direccion_ip'] ?? '',
-                            'SSID' => $row['ssid'] ?? '',
-                            'Usuario' => $row['usuario_acceso'] ?? '',
-                            'Password' => $row['password_acceso'] ?? '',
-                            'Acceso' => ((int)($row['acceso_habilitado'] ?? 0) === 1) ? 'Activado' : 'Desactivado',
-                            'Fecha' => equipoReportDate($row['fecha_instalacion'] ?? ''),
-                            'Estado' => $estadoLabels[$estado] ?? ucfirst(str_replace('_', ' ', $estado)),
-                            'Instalacion' => !empty($row['instalacion_id']) ? '#' . (int)$row['instalacion_id'] : 'Sin instalación agrupada',
-                            'Observaciones' => $row['observaciones_tecnico'] ?? '',
-                        ];
-                        ?>
-                        <tr>
-                            <td>
-                                <a href="<?php echo url('clientes/' . (int)($row['cliente_id'] ?? 0)); ?>" class="text-decoration-none">
-                                    <?php echo htmlspecialchars($row['cliente_nombre'] ?? 'Sin cliente'); ?>
-                                </a>
-                                <div class="small text-muted"><?php echo htmlspecialchars($row['cliente_telefono'] ?? ''); ?></div>
-                            </td>
-                            <td><?php echo htmlspecialchars($tipoLabels[$tipo] ?? ucfirst(str_replace('_', ' ', $tipo))); ?></td>
-                            <td>
-                                <a href="<?php echo url('equipos/' . (int)($row['id'] ?? 0)); ?>" class="text-decoration-none">
-                                    <?php echo htmlspecialchars($equipoTxt); ?>
-                                </a>
-                                <div class="small text-muted"><?php echo !empty($row['numero_serie']) ? 'Serie: ' . htmlspecialchars($row['numero_serie']) : 'Sin serie'; ?></div>
-                            </td>
-                            <td><?php echo htmlspecialchars($row['mac_address'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($row['direccion_ip'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($row['ssid'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($row['usuario_acceso'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($row['password_acceso'] ?: '-'); ?></td>
-                            <td>
-                                <?php if ($tipo === 'modem'): ?>
-                                    <span class="badge <?php echo ((int)($row['acceso_habilitado'] ?? 0) === 1) ? 'bg-success' : 'bg-secondary'; ?>">
-                                        <?php echo ((int)($row['acceso_habilitado'] ?? 0) === 1) ? 'Activado' : 'Desactivado'; ?>
-                                    </span>
-                                <?php else: ?>
-                                    <span class="text-muted">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo htmlspecialchars(equipoReportDate($row['fecha_instalacion'] ?? '')); ?></td>
-                            <td>
-                                <span class="badge <?php echo htmlspecialchars(equipoReportBadge($estado)); ?>">
-                                    <?php echo htmlspecialchars($estadoLabels[$estado] ?? ucfirst(str_replace('_', ' ', $estado))); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <button type="button" class="btn btn-outline-primary btn-sm btn-detalle" data-detail="<?php echo htmlspecialchars(json_encode($detalle, JSON_UNESCAPED_UNICODE)); ?>">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-
-        <?php if (empty($rows)): ?>
-            <div class="text-center py-5">
-                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                <div class="fw-semibold">No hay equipos para mostrar</div>
-                <div class="text-muted small">Ajusta los filtros o registra equipos instalados.</div>
-            </div>
-        <?php endif; ?>
-    </div>
-</div>
-
-<div class="modal fade" id="detalleEquipoModal" tabindex="-1" aria-labelledby="detalleEquipoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="detalleEquipoModalLabel">
-                    <i class="fas fa-router me-2"></i>
-                    Detalle del equipo instalado
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <tbody id="detalleEquipoBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-(function() {
-    const table = document.getElementById('equiposInstaladosTable');
-    const exportBtn = document.getElementById('exportCsvBtn');
-    const printBtn = document.getElementById('printReportBtn');
-    const detalleBody = document.getElementById('detalleEquipoBody');
-    const detalleModalEl = document.getElementById('detalleEquipoModal');
-    const detalleModal = detalleModalEl && window.bootstrap ? new bootstrap.Modal(detalleModalEl) : null;
-
-    function escapeCsv(value) {
-        const s = String(value ?? '');
-        if (/[\n\r,\"]/g.test(s)) return '"' + s.replace(/\"/g, '""') + '"';
-        return s;
-    }
-
-    function exportCsv() {
-        const rows = Array.from(table.querySelectorAll('tbody tr'));
-        if (!rows.length) {
-            window.alert('No hay registros para exportar.');
-            return;
-        }
-
-        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.innerText.trim()).slice(0, -1);
-        const lines = [headers.map(escapeCsv).join(',')];
-        rows.forEach(tr => {
-            const values = Array.from(tr.querySelectorAll('td')).slice(0, -1).map(td => td.innerText.replace(/\s+/g, ' ').trim());
-            lines.push(values.map(escapeCsv).join(','));
-        });
-
-        const blob = new Blob(["\ufeff" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const d = new Date();
-        const stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
-        a.href = url;
-        a.download = 'equipos_instalados_' + stamp + '.csv';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    }
-
-    document.addEventListener('click', function(e) {
-        const btn = e.target.closest('.btn-detalle');
-        if (!btn || !detalleBody) return;
-
-        const detail = JSON.parse(btn.dataset.detail || '{}');
-        detalleBody.innerHTML = '';
-        Object.keys(detail).forEach((key) => {
-            const tr = document.createElement('tr');
-            const th = document.createElement('th');
-            const td = document.createElement('td');
-            th.textContent = key;
-            td.textContent = detail[key] || '-';
-            tr.appendChild(th);
-            tr.appendChild(td);
-            detalleBody.appendChild(tr);
-        });
-
-        if (detalleModal) detalleModal.show();
-    });
-
-    if (exportBtn) exportBtn.addEventListener('click', exportCsv);
-    if (printBtn) printBtn.addEventListener('click', function() { window.print(); });
-})();
-</script>
-
+<?php if (empty($porCliente)): ?><div class="card border-0 shadow-sm"><div class="card-body py-5 text-center"><i class="fas fa-inbox fa-2x text-muted mb-3"></i><h3 class="h6">No hay equipos para mostrar</h3><p class="text-muted small mb-0">Ajusta los filtros o registra un equipo nuevo.</p></div></div><?php endif; ?>
+<script>document.querySelectorAll('tr[data-href]').forEach(function(row){row.addEventListener('click',function(e){if(!e.target.closest('a,button,input,select,label'))window.location=row.dataset.href;});row.addEventListener('keydown',function(e){if(e.key==='Enter')window.location=row.dataset.href;});});</script>
 <?php include 'views/layouts/footer.php'; ?>

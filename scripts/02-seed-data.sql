@@ -10,19 +10,9 @@ INSERT INTO clientes (nombre, direccion, telefono, email, estado, tipo_conexion,
 ('Patricia Morales', 'Calle 67 #89-01', '+57 307 890 1234', 'patricia@email.com', 'pendiente', 'cableado_utp', 42000.00)
 ON CONFLICT DO NOTHING;
 
--- Insertar datos de ejemplo en pagos
+-- Insertar un pago de ejemplo
 INSERT INTO pagos (cliente_id, monto, fecha_pago, fecha_vencimiento, metodo_pago, estado, numero_factura) VALUES
-(1, 50000.00, '2024-01-15', '2024-01-15', 'transferencia', 'pagado', 'FAC-001'),
-(1, 50000.00, '2024-02-15', '2024-02-15', 'transferencia', 'pagado', 'FAC-002'),
-(2, 35000.00, '2024-01-20', '2024-01-20', 'efectivo', 'pagado', 'FAC-003'),
-(3, 40000.00, '2024-01-10', '2024-01-10', 'paypal', 'vencido', 'FAC-004'),
-(4, 60000.00, '2024-02-01', '2024-02-01', 'transferencia', 'pagado', 'FAC-005'),
-(5, 30000.00, '2024-02-10', '2024-02-10', 'efectivo', 'pendiente', 'FAC-006'),
-(6, 45000.00, '2024-02-20', '2024-02-20', 'transferencia', 'pagado', 'FAC-007'),
-(7, 38000.00, '2024-03-01', '2024-03-01', 'tarjeta', 'pendiente', 'FAC-008'),
-(8, 42000.00, '2024-03-05', '2024-03-05', 'efectivo', 'pendiente', 'FAC-009'),
-(1, 50000.00, CURRENT_DATE + INTERVAL '5 days', CURRENT_DATE + INTERVAL '5 days', 'transferencia', 'pendiente', 'FAC-010'),
-(2, 35000.00, CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE + INTERVAL '3 days', 'efectivo', 'pendiente', 'FAC-011')
+(1, 50000.00, '2024-01-15', '2024-01-15', 'transferencia', 'pagado', 'FAC-001')
 ON CONFLICT DO NOTHING;
 
 -- Insertar datos de ejemplo en equipos

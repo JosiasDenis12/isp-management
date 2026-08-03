@@ -6,14 +6,9 @@ INSERT INTO clientes (nombre, direccion, telefono, email, estado, tipo_conexion,
 ('Ana Martínez', 'Calle 34 #56-78', '+57 303 456 7890', 'ana@email.com', 'activo', 'fibra_optica', 60000.00),
 ('Luis Rodríguez', 'Carrera 12 #34-56', '+57 304 567 8901', 'luis@email.com', 'pendiente', 'inalambrica', 30000.00);
 
--- Insertar pagos de ejemplo
+-- Insertar un pago de ejemplo
 INSERT INTO pagos (cliente_id, monto, fecha_pago, fecha_vencimiento, metodo_pago, estado, numero_factura) VALUES
-(1, 50000.00, '2024-01-15', '2024-01-15', 'transferencia', 'pagado', 'FAC-001'),
-(1, 50000.00, '2024-02-15', '2024-02-15', 'transferencia', 'pagado', 'FAC-002'),
-(2, 35000.00, '2024-01-20', '2024-01-20', 'efectivo', 'pagado', 'FAC-003'),
-(3, 40000.00, '2024-01-10', '2024-01-10', 'paypal', 'vencido', 'FAC-004'),
-(4, 60000.00, '2024-02-01', '2024-02-01', 'transferencia', 'pagado', 'FAC-005'),
-(5, 30000.00, '2024-02-10', '2024-02-10', 'efectivo', 'pendiente', 'FAC-006');
+(1, 50000.00, '2024-01-15', '2024-01-15', 'transferencia', 'pagado', 'FAC-001');
 
 -- Insertar equipos de ejemplo
 INSERT INTO equipos (cliente_id, tipo_equipo, marca, modelo, numero_serie, estado_tecnico, fecha_instalacion, observaciones_tecnico) VALUES

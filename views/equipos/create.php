@@ -3,6 +3,8 @@
 <?php
 $post = $_POST ?? [];
 $modo = $post['modo_registro'] ?? 'individual';
+$prefillClienteId = (int)($_GET['cliente_id'] ?? 0);
+$prefillFecha = trim((string)($_GET['fecha_instalacion'] ?? date('Y-m-d')));
 
 function oldEquipo($name, $default = '') {
     return htmlspecialchars($_POST[$name] ?? $default);
@@ -60,6 +62,11 @@ function checkedEquipo($name, $value = '1') {
         height: 100%;
         cursor: pointer;
     }
+    .mode-card.is-active {
+        border-color: rgba(13, 110, 253, 0.35);
+        background: rgba(13, 110, 253, 0.04);
+        box-shadow: 0 8px 20px rgba(13, 110, 253, 0.08);
+    }
     .mode-card input {
         margin-top: .2rem;
     }
@@ -106,7 +113,7 @@ function checkedEquipo($name, $value = '1') {
                             <select class="form-select" id="cliente_id" name="cliente_id" required>
                                 <option value="">Seleccionar cliente...</option>
                                 <?php foreach ($clientes as $cliente): ?>
-                                    <option value="<?php echo (int)$cliente['id']; ?>" <?php echo selectedEquipo('cliente_id', $cliente['id']); ?>>
+                                    <option value="<?php echo (int)$cliente['id']; ?>" <?php echo selectedEquipo('cliente_id', $cliente['id'], $prefillClienteId); ?>>
                                         <?php echo htmlspecialchars($cliente['nombre']); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -115,7 +122,7 @@ function checkedEquipo($name, $value = '1') {
 
                         <div class="col-md-6 mb-3">
                             <label for="fecha_instalacion" class="form-label">Fecha de Instalación *</label>
-                            <input type="date" class="form-control" id="fecha_instalacion" name="fecha_instalacion" value="<?php echo oldEquipo('fecha_instalacion', date('Y-m-d')); ?>" required>
+                            <input type="date" class="form-control" id="fecha_instalacion" name="fecha_instalacion" value="<?php echo oldEquipo('fecha_instalacion', $prefillFecha); ?>" required>
                         </div>
                     </div>
 
@@ -140,6 +147,7 @@ function checkedEquipo($name, $value = '1') {
                                     <option value="">Seleccionar estado...</option>
                                     <option value="operativo" <?php echo selectedEquipo('estado_tecnico', 'operativo', 'operativo'); ?>>Operativo</option>
                                     <option value="necesita_revision" <?php echo selectedEquipo('estado_tecnico', 'necesita_revision'); ?>>Necesita Revisión</option>
+                                    <option value="dañado" <?php echo selectedEquipo('estado_tecnico', 'dañado'); ?>>Dañado</option>
                                     <option value="fuera_de_servicio" <?php echo selectedEquipo('estado_tecnico', 'fuera_de_servicio'); ?>>Fuera de Servicio</option>
                                     <option value="en_mantenimiento" <?php echo selectedEquipo('estado_tecnico', 'en_mantenimiento'); ?>>En Mantenimiento</option>
                                 </select>
@@ -372,6 +380,32 @@ function checkedEquipo($name, $value = '1') {
     </div>
 </div>
 
+<?php if (!empty($_GET['registrado'])): ?>
+<div class="modal fade" id="equipoRegistradoModal" tabindex="-1" aria-labelledby="equipoRegistradoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-body p-4 text-center">
+                <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3" style="width:58px;height:58px">
+                    <i class="fas fa-check fa-lg"></i>
+                </div>
+                <h5 id="equipoRegistradoModalLabel" class="mb-2">Equipo registrado correctamente</h5>
+                <p class="text-muted mb-4">El formulario se limpió para que puedas continuar rápido con la instalación.</p>
+                <div class="d-grid gap-2 text-start">
+                    <a class="btn btn-primary" href="<?php echo url('equipos/create?cliente_id=' . $prefillClienteId . '&fecha_instalacion=' . urlencode($prefillFecha)); ?>">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Registrar otro equipo para el mismo cliente
+                    </a>
+                    <a class="btn btn-outline-primary" href="<?php echo url('equipos/create'); ?>">
+                        <i class="fas fa-broom me-2"></i>
+                        Registrar equipo para otro cliente
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('equipoForm');
@@ -381,10 +415,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const tipoEquipo = document.getElementById('tipo_equipo');
     const networkFields = document.getElementById('networkFields');
     const modemOnly = Array.from(document.querySelectorAll('.modem-only'));
+    const modeCards = Array.from(document.querySelectorAll('.mode-card'));
 
     const individualRequired = ['tipo_equipo', 'estado_tecnico', 'marca', 'modelo'];
     const networkRequired = ['mac_address', 'direccion_ip', 'password_acceso'];
     const modemRequired = ['ssid', 'usuario_acceso'];
+    const conditionalInputs = ['mac_address', 'direccion_ip', 'password_acceso', 'ssid', 'usuario_acceso'];
+    const conditionalCheckboxes = ['acceso_habilitado'];
+    let previousTipo = tipoEquipo ? tipoEquipo.value : '';
 
     function currentMode() {
         const checked = document.querySelector('input[name="modo_registro"]:checked');
@@ -402,6 +440,33 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.complete-required').forEach((el) => {
             el.required = required;
         });
+    }
+
+    function clearConditionalFields() {
+        conditionalInputs.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        conditionalCheckboxes.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = false;
+        });
+    }
+
+    function syncModeCards() {
+        modeCards.forEach((card) => {
+            const input = card.querySelector('input[type="radio"]');
+            card.classList.toggle('is-active', !!(input && input.checked));
+        });
+    }
+
+    function syncTypeChangeBehavior() {
+        const currentType = tipoEquipo ? tipoEquipo.value : '';
+        if (currentType !== previousTipo) {
+            clearConditionalFields();
+            previousTipo = currentType;
+        }
     }
 
     function updateDeviceFields() {
@@ -426,10 +491,16 @@ document.addEventListener('DOMContentLoaded', function() {
         setRequired(individualRequired, isIndividual);
         setCompleteRequired(!isIndividual);
         updateDeviceFields();
+        syncModeCards();
     }
 
     modeInputs.forEach((input) => input.addEventListener('change', updateMode));
-    if (tipoEquipo) tipoEquipo.addEventListener('change', updateDeviceFields);
+    if (tipoEquipo) {
+        tipoEquipo.addEventListener('change', function() {
+            syncTypeChangeBehavior();
+            updateDeviceFields();
+        });
+    }
 
     form.addEventListener('submit', function(e) {
         const mode = currentMode();
@@ -444,6 +515,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     updateMode();
+    syncModeCards();
+
+    const registeredModal = document.getElementById('equipoRegistradoModal');
+    if (registeredModal && window.bootstrap) {
+        new bootstrap.Modal(registeredModal).show();
+    }
 });
 </script>
 

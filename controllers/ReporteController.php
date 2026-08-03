@@ -109,6 +109,8 @@ class ReporteController {
             'estado_tecnico' => trim((string)($_GET['estado_tecnico'] ?? '')),
             'mac_address' => trim((string)($_GET['mac_address'] ?? '')),
             'direccion_ip' => trim((string)($_GET['direccion_ip'] ?? '')),
+            'numero_serie' => trim((string)($_GET['numero_serie'] ?? '')),
+            'estado_acceso' => trim((string)($_GET['estado_acceso'] ?? '')),
             'fecha_desde' => $this->cleanDate($_GET['fecha_desde'] ?? ''),
             'fecha_hasta' => $this->cleanDate($_GET['fecha_hasta'] ?? ''),
             'orden_fecha' => (($_GET['orden_fecha'] ?? 'desc') === 'asc') ? 'asc' : 'desc',
@@ -119,9 +121,14 @@ class ReporteController {
 
         $stats = [
             'total' => count($rows),
+            'clientes' => count(array_unique(array_filter(array_column($rows, 'cliente_id')))),
             'antenas' => count(array_filter($rows, function($r) { return ($r['tipo_equipo'] ?? '') === 'antena'; })),
             'modems' => count(array_filter($rows, function($r) { return ($r['tipo_equipo'] ?? '') === 'modem'; })),
-            'acceso_activo' => count(array_filter($rows, function($r) { return (int)($r['acceso_habilitado'] ?? 0) === 1; })),
+            'switches' => count(array_filter($rows, function($r) { return ($r['tipo_equipo'] ?? '') === 'switch'; })),
+            'access_points' => count(array_filter($rows, function($r) { return ($r['tipo_equipo'] ?? '') === 'access_point'; })),
+            'operativos' => count(array_filter($rows, function($r) { return ($r['estado_tecnico'] ?? '') === 'operativo'; })),
+            'mantenimiento' => count(array_filter($rows, function($r) { return ($r['estado_tecnico'] ?? '') === 'en_mantenimiento'; })),
+            'fuera_servicio' => count(array_filter($rows, function($r) { return ($r['estado_tecnico'] ?? '') === 'fuera_de_servicio'; })),
         ];
 
         $data = [

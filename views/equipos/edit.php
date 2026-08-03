@@ -2,6 +2,7 @@
 
 <?php
 $equipo = $equipo ?? [];
+$GLOBALS['equipo'] = $equipo;
 
 function equipoEditNormalizeTipo($tipo) {
     $tipo = trim((string)$tipo);
@@ -88,6 +89,17 @@ $tipoEquipoActual = equipoEditNormalizeTipo($equipo['tipo_equipo'] ?? '');
     .device-panel .device-panel-body {
         padding: 1rem;
     }
+    .field-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .35rem .65rem;
+        border-radius: 999px;
+        background: rgba(13, 110, 253, 0.08);
+        color: #0d6efd;
+        font-size: .78rem;
+        font-weight: 700;
+    }
 </style>
 
 <div class="row">
@@ -126,6 +138,13 @@ $tipoEquipoActual = equipoEditNormalizeTipo($equipo['tipo_equipo'] ?? '');
                                 <option value="otro" <?php echo equipoEditSelected('tipo_equipo', 'otro'); ?>>Otro</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <span class="field-chip">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            Los campos de red se muestran según el tipo de equipo seleccionado
+                        </span>
                     </div>
 
                     <div class="row">
@@ -297,6 +316,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const networkRequired = ['mac_address', 'direccion_ip', 'password_acceso'];
     const modemRequired = ['ssid', 'usuario_acceso'];
+    const conditionalInputs = ['mac_address', 'direccion_ip', 'password_acceso', 'ssid', 'usuario_acceso'];
+    const conditionalCheckboxes = ['acceso_habilitado'];
+    let previousTipo = tipoEquipo ? tipoEquipo.value : tipoInicial;
 
     if (tipoEquipo && tipoInicial && !tipoEquipo.value) {
         tipoEquipo.value = tipoInicial;
@@ -306,6 +328,18 @@ document.addEventListener('DOMContentLoaded', function() {
         ids.forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.required = required;
+        });
+    }
+
+    function clearConditionalFields() {
+        conditionalInputs.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        conditionalCheckboxes.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = false;
         });
     }
 
@@ -321,7 +355,16 @@ document.addEventListener('DOMContentLoaded', function() {
         setRequired(modemRequired, isModem);
     }
 
-    tipoEquipo.addEventListener('change', updateDeviceFields);
+    function handleTypeChange() {
+        const currentType = tipoEquipo.value;
+        if (currentType !== previousTipo) {
+            clearConditionalFields();
+            previousTipo = currentType;
+        }
+        updateDeviceFields();
+    }
+
+    tipoEquipo.addEventListener('change', handleTypeChange);
 
     form.addEventListener('submit', function() {
         btnActualizar.disabled = true;

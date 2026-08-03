@@ -83,7 +83,14 @@ class EquipoController {
 
                 if ($this->validarEquipoIndividual($equipoModel, $error)) {
                     if ($equipoModel->create()) {
-                        header('Location: ' . url('equipos') . '?success=Equipo registrado exitosamente');
+                        // El alta consecutiva conserva el contexto de la instalación para
+                        // que el técnico pueda registrar el siguiente dispositivo sin repetirlo.
+                        $contexto = http_build_query([
+                            'registrado' => 1,
+                            'cliente_id' => (int)$clienteId,
+                            'fecha_instalacion' => $fechaInstalacion,
+                        ]);
+                        header('Location: ' . url('equipos/create') . '?' . $contexto);
                         exit;
                     }
                     $error = 'Error al registrar el equipo';
@@ -289,6 +296,29 @@ class EquipoController {
         ];
         
         $this->loadView('equipos/show', $data);
+    }
+
+    public function delete($id) {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . url('equipos/' . $id));
+            exit;
+        }
+
+        $equipoModel = new Equipo();
+        $equipo = $equipoModel->getById($id);
+        if (!$equipo) {
+            header('Location: ' . url('equipos') . '?error=' . urlencode('Equipo no encontrado'));
+            exit;
+        }
+
+        $equipoModel->id = (int)$id;
+        if ($equipoModel->delete()) {
+            header('Location: ' . url('equipos') . '?success=' . urlencode('Equipo eliminado correctamente'));
+            exit;
+        }
+
+        header('Location: ' . url('equipos/' . $id) . '?error=' . urlencode('No se pudo eliminar el equipo'));
+        exit;
     }
 
     public function programarMantenimiento($id) {

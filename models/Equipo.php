@@ -41,9 +41,10 @@ class Equipo {
     }
     
     public function getById($id) {
-        $query = "SELECT e.*, c.nombre as cliente_nombre 
+        $query = "SELECT e.*, c.nombre as cliente_nombre, i.fecha_instalacion AS instalacion_fecha, i.observaciones AS instalacion_observaciones
                   FROM " . $this->table_name . " e
                   JOIN clientes c ON e.cliente_id = c.id
+                  LEFT JOIN instalaciones i ON e.instalacion_id = i.id
                   WHERE e.id = :id";
         
         $stmt = $this->conn->prepare($query);
@@ -210,6 +211,17 @@ class Equipo {
         if (!empty($filters['direccion_ip'])) {
             $where[] = 'e.direccion_ip LIKE :direccion_ip';
             $params[':direccion_ip'] = '%' . $filters['direccion_ip'] . '%';
+        }
+
+        if (!empty($filters['numero_serie'])) {
+            $where[] = 'e.numero_serie LIKE :numero_serie';
+            $params[':numero_serie'] = '%' . $filters['numero_serie'] . '%';
+        }
+
+        if (($filters['estado_acceso'] ?? '') === 'activo') {
+            $where[] = "e.tipo_equipo = 'modem' AND e.acceso_habilitado = 1";
+        } elseif (($filters['estado_acceso'] ?? '') === 'inactivo') {
+            $where[] = "e.tipo_equipo = 'modem' AND (e.acceso_habilitado = 0 OR e.acceso_habilitado IS NULL)";
         }
 
         if (!empty($filters['fecha_desde'])) {

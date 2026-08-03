@@ -380,7 +380,6 @@ if ($type === 'ticket') {
                     <div class="company-tagline">La Red del Cielo</div>
                     <div class="company-contact">
                         Internet por cableado (UTP)<br>
-                        ✉️ contacto@ispmanagement.com &nbsp;·&nbsp; 🌐 www.ispmanagement.com
                     </div>
                 </div>
             </div>
