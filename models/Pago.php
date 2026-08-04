@@ -226,6 +226,57 @@ class Pago {
         
         return $stmt->execute();
     }
+
+    public function update() {
+        $id = (int)$this->id;
+        if ($id <= 0) {
+            throw new InvalidArgumentException('ID de pago inválido');
+        }
+
+        $cliente = $this->obtenerClienteParaCiclo((int)$this->cliente_id);
+        if (!$cliente) {
+            throw new InvalidArgumentException('Cliente no encontrado');
+        }
+
+        $ciclo = SubscriptionStatus::calcular($this->fecha_pago, null, (int)($cliente['dia_corte'] ?? 0));
+        $this->fecha_vencimiento = $ciclo['fecha_corte'];
+
+        $query = "UPDATE " . $this->table_name . "
+                  SET cliente_id = :cliente_id,
+                      monto = :monto,
+                      fecha_pago = :fecha_pago,
+                      fecha_vencimiento = :fecha_vencimiento,
+                      metodo_pago = :metodo_pago,
+                      estado = :estado,
+                      numero_factura = :numero_factura,
+                      observaciones = :observaciones
+                  WHERE id = :id";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->bindValue(':cliente_id', (int)$this->cliente_id, PDO::PARAM_INT);
+        $stmt->bindValue(':monto', $this->monto);
+        $stmt->bindValue(':fecha_pago', $this->fecha_pago);
+        $stmt->bindValue(':fecha_vencimiento', $this->fecha_vencimiento);
+        $stmt->bindValue(':metodo_pago', $this->metodo_pago);
+        $stmt->bindValue(':estado', $this->estado);
+        $stmt->bindValue(':numero_factura', $this->numero_factura);
+        $stmt->bindValue(':observaciones', $this->observaciones);
+
+        return $stmt->execute();
+    }
+
+    public function delete($id) {
+        $id = (int)$id;
+        if ($id <= 0) {
+            throw new InvalidArgumentException('ID de pago inválido');
+        }
+
+        $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
     
     public function getStats() {
         return $this->getKpis();

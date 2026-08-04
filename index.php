@@ -48,6 +48,8 @@ $router->addRoute('GET', '/pagos/kpis', 'PagoController', 'kpis');
 $router->addRoute('GET', '/pagos/create', 'PagoController', 'create');
 $router->addRoute('POST', '/pagos/create', 'PagoController', 'create');
 $router->addRoute('GET', '/pagos/{id}', 'PagoController', 'show');
+$router->addRoute('POST', '/pagos/{id}/edit', 'PagoController', 'edit');
+$router->addRoute('POST', '/pagos/{id}/delete', 'PagoController', 'delete');
 $router->addRoute('GET', '/pagos/{id}/print', 'PagoController', 'print');
 $router->addRoute('POST', '/pagos/{id}/marcar-pagado', 'PagoController', 'marcarPagado');
 $router->addRoute('POST', '/pagos/{id}/recordatorio', 'PagoController', 'enviarRecordatorio');

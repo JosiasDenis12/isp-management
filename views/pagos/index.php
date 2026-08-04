@@ -2,6 +2,7 @@
 
 <?php
     $pagos = $pagos ?? [];
+    $clientes = $clientes ?? [];
 
     $kpis = $kpis ?? [];
     $totalPagos  = (int)($kpis['total_pagos_mes'] ?? 0);
@@ -85,6 +86,19 @@
         ['bg'=>'bg-warning-subtle','text'=>'text-warning'],
         ['bg'=>'bg-purple-subtle', 'text'=>'text-purple'],
     ];
+
+    $clientesMap = [];
+    foreach ($clientes as $cliente) {
+        $clienteId = (int)($cliente['id'] ?? 0);
+        if ($clienteId <= 0) {
+            continue;
+        }
+
+        $clientesMap[$clienteId] = [
+            'nombre' => (string)($cliente['nombre'] ?? ''),
+            'plan_mensual' => (float)($cliente['plan_mensual'] ?? 0),
+        ];
+    }
 ?>
 
 <style>
@@ -151,6 +165,18 @@
 /* Page title */
 .page-title    { font-weight:800; font-size:1.6rem; }
 .page-subtitle { font-size:.85rem; }
+
+/* Payment actions */
+.payment-action { width: 32px; height: 32px; border-radius: 10px; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+.payment-action svg, .payment-action i { font-size:.8rem; }
+
+/* Payment modals */
+.payment-modal .modal-content { border:0; border-radius:1.2rem; box-shadow:0 18px 48px rgba(15,23,42,.16); }
+.payment-modal .modal-header { border-bottom:0; padding-bottom:0; }
+.payment-modal .modal-footer { border-top:0; }
+.payment-summary { border:1px solid rgba(0,0,0,.08); border-radius:1rem; background:linear-gradient(180deg, rgba(59,130,246,.04), rgba(59,130,246,.01)); }
+.payment-summary-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--bs-secondary-color); font-weight:700; }
+.payment-summary-value { font-size:.95rem; font-weight:700; }
 
 /* Grid view cards */
 .pago-grid-card { border:1px solid rgba(0,0,0,.07); border-radius:1rem; transition:box-shadow .2s, transform .15s; }
@@ -531,6 +557,7 @@
                             ?>
                             <tr
                                 data-pago-row
+                                data-pago-id="<?php echo $pagoId; ?>"
                                 data-nombre="<?php echo htmlspecialchars(mb_strtolower($nombreCliente, 'UTF-8')); ?>"
                                 data-factura="<?php echo htmlspecialchars(mb_strtolower($factura, 'UTF-8')); ?>"
                                 data-estado="<?php echo htmlspecialchars($estado); ?>"
@@ -543,28 +570,28 @@
                                             <?php echo htmlspecialchars($initials); ?>
                                         </div>
                                         <div>
-                                            <div class="fw-semibold" style="font-size:.87rem;"><?php echo htmlspecialchars($nombreCliente); ?></div>
+                                            <div class="fw-semibold" style="font-size:.87rem;" data-pago-field="cliente-nombre"><?php echo htmlspecialchars($nombreCliente); ?></div>
                                             <?php if (!empty($pago['cliente_referencia'])): ?>
                                             <div class="text-muted" style="font-size:.72rem;"><?php echo htmlspecialchars($pago['cliente_referencia']); ?></div>
                                             <?php endif; ?>
                                         </div>
                                     </div>
                                 </td>
-                                <td><span class="factura-code"><?php echo htmlspecialchars($factura); ?></span></td>
-                                <td><span class="monto-value">$<?php echo number_format($monto); ?></span></td>
+                                <td><span class="factura-code" data-pago-field="factura"><?php echo htmlspecialchars($factura); ?></span></td>
+                                <td><span class="monto-value" data-pago-field="monto">$<?php echo number_format($monto); ?></span></td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2 text-muted">
-                                        <i class="fas <?php echo $metodIcon; ?>"></i>
-                                        <span style="font-size:.85rem;"><?php echo htmlspecialchars(ucfirst($metodo)); ?></span>
+                                        <i class="fas <?php echo $metodIcon; ?>" data-pago-field="metodo-icon"></i>
+                                        <span style="font-size:.85rem;" data-pago-field="metodo-label"><?php echo htmlspecialchars(ucfirst($metodo)); ?></span>
                                     </div>
                                 </td>
-                                <td style="font-size:.85rem;"><?php echo $fechaPago; ?></td>
-                                <td style="font-size:.85rem;"><?php echo $fechaVenc; ?></td>
+                                <td style="font-size:.85rem;" data-pago-field="fecha-pago"><?php echo $fechaPago; ?></td>
+                                <td style="font-size:.85rem;" data-pago-field="fecha-venc"><?php echo $fechaVenc; ?></td>
                                 <td>
-                                    <span class="estado-badge <?php echo $estadoBadgeClass; ?>">
+                                    <span class="estado-badge <?php echo $estadoBadgeClass; ?>" data-pago-field="estado-badge">
                                         <span class="dot" style="background:<?php echo $estadoDot; ?>;"></span>
                                         <i class="fas <?php echo $estadoIcon; ?>" style="font-size:.65rem;"></i>
-                                        <?php echo htmlspecialchars($estadoLabel); ?>
+                                        <span data-pago-field="estado-label"><?php echo htmlspecialchars($estadoLabel); ?></span>
                                     </span>
                                 </td>
                                 <td>
@@ -572,6 +599,12 @@
                                         <a href="<?php echo url('pagos/' . $pagoId); ?>" class="btn btn-outline-primary action-btn" title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        <button type="button" class="btn btn-outline-warning action-btn js-pago-edit" title="Editar pago" data-bs-toggle="tooltip" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>">
+                                            <i class="fas fa-pen"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger action-btn js-pago-delete" title="Eliminar pago" data-bs-toggle="tooltip" data-pago-id="<?php echo $pagoId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                         <a href="<?php echo url('pagos/' . $pagoId . '/print'); ?>" class="btn btn-outline-success action-btn" title="Imprimir factura" target="_blank">
                                             <i class="fas fa-print"></i>
                                         </a>
@@ -584,6 +617,8 @@
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                                 <li><a class="dropdown-item" href="<?php echo url('pagos/' . $pagoId); ?>"><i class="fas fa-eye me-2"></i>Ver detalles</a></li>
+                                                <li><button type="button" class="dropdown-item js-pago-edit" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>"><i class="fas fa-pen me-2"></i>Editar</button></li>
+                                                <li><button type="button" class="dropdown-item text-danger js-pago-delete" data-pago-id="<?php echo $pagoId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>"><i class="fas fa-trash me-2"></i>Eliminar</button></li>
                                                 <li><a class="dropdown-item" href="<?php echo url('pagos/' . $pagoId . '/print'); ?>" target="_blank"><i class="fas fa-print me-2"></i>Imprimir factura</a></li>
                                                 <li><a class="dropdown-item" href="<?php echo url('pagos/' . $pagoId . '/print') . '?type=ticket'; ?>" target="_blank"><i class="fas fa-receipt me-2"></i>Imprimir ticket</a></li>
                                             </ul>
@@ -619,11 +654,13 @@
                 $fechaPago = !empty($pago['fecha_pago']) ? date('d/m/Y', strtotime($pago['fecha_pago'])) : '—';
                 $fechaVenc = !empty($pago['fecha_vencimiento']) ? date('d/m/Y', strtotime($pago['fecha_vencimiento'])) : '—';
                 $pagoId    = (int)($pago['id'] ?? 0);
+                $clienteId = (int)($pago['cliente_id'] ?? 0);
                 $monto     = (float)($pago['monto'] ?? 0);
                 $factura   = (string)($pago['numero_factura'] ?? '—');
             ?>
             <div class="col-lg-4 col-md-6 mb-4 pago-grid-item"
                 data-pago-grid
+                data-pago-id="<?php echo $pagoId; ?>"
                 data-nombre="<?php echo htmlspecialchars(mb_strtolower($nombreCliente, 'UTF-8')); ?>"
                 data-factura="<?php echo htmlspecialchars(mb_strtolower($factura, 'UTF-8')); ?>"
                 data-estado="<?php echo htmlspecialchars($estado); ?>"
@@ -638,37 +675,39 @@
                                     <?php echo htmlspecialchars($initials); ?>
                                 </div>
                                 <div>
-                                    <div class="fw-semibold"><?php echo htmlspecialchars($nombreCliente); ?></div>
-                                    <span class="factura-code"><?php echo htmlspecialchars($factura); ?></span>
+                                    <div class="fw-semibold" data-pago-field="cliente-nombre"><?php echo htmlspecialchars($nombreCliente); ?></div>
+                                    <span class="factura-code" data-pago-field="factura"><?php echo htmlspecialchars($factura); ?></span>
                                 </div>
                             </div>
-                            <span class="estado-badge <?php echo $estadoBadgeClass; ?>">
+                            <span class="estado-badge <?php echo $estadoBadgeClass; ?>" data-pago-field="estado-badge">
                                 <span class="dot" style="background:<?php echo $estadoDot; ?>;"></span>
-                                <?php echo htmlspecialchars($estadoLabel); ?>
+                                <span data-pago-field="estado-label"><?php echo htmlspecialchars($estadoLabel); ?></span>
                             </span>
                         </div>
 
                         <div class="row g-2 mb-3">
                             <div class="col-6">
                                 <div class="info-label" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--bs-secondary-color);">Monto</div>
-                                <div class="monto-value">$<?php echo number_format($monto); ?></div>
+                                <div class="monto-value" data-pago-field="monto">$<?php echo number_format($monto); ?></div>
                             </div>
                             <div class="col-6">
                                 <div class="info-label" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--bs-secondary-color);">Método</div>
-                                <div style="font-size:.85rem;"><i class="fas <?php echo $metodIcon; ?> me-1 text-muted"></i><?php echo htmlspecialchars(ucfirst($metodo)); ?></div>
+                                <div style="font-size:.85rem;"><i class="fas <?php echo $metodIcon; ?> me-1 text-muted" data-pago-field="metodo-icon"></i><span data-pago-field="metodo-label"><?php echo htmlspecialchars(ucfirst($metodo)); ?></span></div>
                             </div>
                             <div class="col-6">
                                 <div class="info-label" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--bs-secondary-color);">Fecha pago</div>
-                                <div style="font-size:.83rem;"><?php echo $fechaPago; ?></div>
+                                <div style="font-size:.83rem;" data-pago-field="fecha-pago"><?php echo $fechaPago; ?></div>
                             </div>
                             <div class="col-6">
                                 <div class="info-label" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--bs-secondary-color);">Vencimiento</div>
-                                <div style="font-size:.83rem;"><?php echo $fechaVenc; ?></div>
+                                <div style="font-size:.83rem;" data-pago-field="fecha-venc"><?php echo $fechaVenc; ?></div>
                             </div>
                         </div>
 
                         <div class="d-flex gap-2 pt-2 border-top">
                             <a href="<?php echo url('pagos/' . $pagoId); ?>" class="btn btn-outline-primary btn-sm" style="border-radius:8px;font-size:.78rem;"><i class="fas fa-eye me-1"></i>Ver</a>
+                            <button type="button" class="btn btn-outline-warning btn-sm js-pago-edit" style="border-radius:8px;font-size:.78rem;" data-bs-toggle="tooltip" title="Editar pago" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>"><i class="fas fa-pen me-1"></i>Editar</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm js-pago-delete" style="border-radius:8px;font-size:.78rem;" data-bs-toggle="tooltip" title="Eliminar pago" data-pago-id="<?php echo $pagoId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>"><i class="fas fa-trash me-1"></i>Eliminar</button>
                             <a href="<?php echo url('pagos/' . $pagoId . '/print'); ?>" class="btn btn-outline-success btn-sm" style="border-radius:8px;font-size:.78rem;" target="_blank"><i class="fas fa-print me-1"></i>Factura</a>
                             <a href="<?php echo url('pagos/' . $pagoId . '/print') . '?type=ticket'; ?>" class="btn btn-outline-secondary btn-sm" style="border-radius:8px;font-size:.78rem;" target="_blank"><i class="fas fa-receipt me-1"></i>Ticket</a>
                         </div>
@@ -699,6 +738,147 @@
     </div>
 
 <?php endif; ?>
+
+<!-- Modales de edición y eliminación -->
+<div class="modal fade payment-modal" id="pagoEditModal" tabindex="-1" aria-labelledby="pagoEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-1" id="pagoEditModalLabel"><i class="fas fa-pen me-2 text-warning"></i>Editar pago</h5>
+                    <div class="text-muted small">Actualiza la información y guarda sin recargar la página.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div id="pagoEditFeedback" class="alert d-none" role="alert"></div>
+                <div class="payment-summary p-3 mb-3">
+                    <div class="row g-3 small">
+                        <div class="col-md-4">
+                            <div class="payment-summary-label">Factura</div>
+                            <div class="payment-summary-value" id="pagoEditSummaryFactura">—</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="payment-summary-label">Cliente</div>
+                            <div class="payment-summary-value" id="pagoEditSummaryCliente">—</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="payment-summary-label">Monto</div>
+                            <div class="payment-summary-value" id="pagoEditSummaryMonto">—</div>
+                        </div>
+                    </div>
+                </div>
+                <form id="pagoEditForm" novalidate>
+                    <input type="hidden" id="pagoEditId" name="pago_id" value="">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="pagoEditCliente" class="form-label">Cliente *</label>
+                            <select id="pagoEditCliente" name="cliente_id" class="form-select" required>
+                                <option value="">Seleccionar cliente</option>
+                                <?php foreach ($clientes as $cliente): ?>
+                                    <option value="<?php echo (int)($cliente['id'] ?? 0); ?>"><?php echo htmlspecialchars((string)($cliente['nombre'] ?? '')); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">El monto puede ajustarse manualmente si el valor del pago fue diferente.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pagoEditNumeroFactura" class="form-label">Factura</label>
+                            <input type="text" id="pagoEditNumeroFactura" name="numero_factura" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pagoEditMonto" class="form-label">Monto *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" id="pagoEditMonto" name="monto" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pagoEditMetodo" class="form-label">Método de pago *</label>
+                            <select id="pagoEditMetodo" name="metodo_pago" class="form-select" required>
+                                <option value="">Seleccionar método</option>
+                                <option value="transferencia">Transferencia Bancaria</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="paypal">PayPal</option>
+                                <option value="tarjeta">Tarjeta</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pagoEditFechaPago" class="form-label">Fecha de pago *</label>
+                            <input type="date" id="pagoEditFechaPago" name="fecha_pago" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pagoEditFechaVencimiento" class="form-label">Fecha de vencimiento</label>
+                            <input type="date" id="pagoEditFechaVencimiento" class="form-control" readonly>
+                            <div class="form-text">Se recalcula automáticamente al guardar.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pagoEditEstado" class="form-label">Estado *</label>
+                            <select id="pagoEditEstado" name="estado" class="form-select" required>
+                                <option value="pagado">Pagado</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="vencido">Vencido</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="pagoEditObservaciones" class="form-label">Observaciones</label>
+                            <textarea id="pagoEditObservaciones" name="observaciones" class="form-control" rows="4" placeholder="Notas del pago..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-warning" form="pagoEditForm">
+                    <i class="fas fa-save me-2"></i>Guardar cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade payment-modal" id="pagoDeleteModal" tabindex="-1" aria-labelledby="pagoDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-1" id="pagoDeleteModalLabel"><i class="fas fa-triangle-exclamation me-2 text-danger"></i>Eliminar pago</h5>
+                    <div class="text-muted small">Esta acción no se puede deshacer.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div id="pagoDeleteFeedback" class="alert d-none" role="alert"></div>
+                <p class="mb-3">Vas a eliminar el siguiente pago de forma permanente:</p>
+                <div class="payment-summary p-3 mb-3">
+                    <div class="row g-3 small">
+                        <div class="col-12">
+                            <div class="payment-summary-label">Cliente</div>
+                            <div class="payment-summary-value" id="pagoDeleteSummaryCliente">—</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="payment-summary-label">Factura</div>
+                            <div class="payment-summary-value" id="pagoDeleteSummaryFactura">—</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="payment-summary-label">Monto</div>
+                            <div class="payment-summary-value" id="pagoDeleteSummaryMonto">—</div>
+                        </div>
+                    </div>
+                </div>
+                <p class="small text-muted mb-0">Podrás registrar nuevamente el pago si fuera necesario, pero este registro quedará eliminado de la tabla.</p>
+                <form id="pagoDeleteForm" class="d-none">
+                    <input type="hidden" id="pagoDeleteId" name="pago_id" value="">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-danger" form="pagoDeleteForm">
+                    <i class="fas fa-trash me-2"></i>Eliminar pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- ─── Chart.js ──────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -853,7 +1033,7 @@
     function update() {
         pageSize = parseInt(pageSizeSelect ? pageSizeSelect.value : '10', 10);
 
-        const activeItems = isGrid ? gridItems : rows;
+        const activeItems = (isGrid ? gridItems : rows).filter(el => document.contains(el));
         const matched = activeItems.filter(el => matchesItem(el.dataset));
         const total      = matched.length;
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -888,6 +1068,8 @@
 
     setView(false);
     update();
+    window.refreshPagosList = update;
+    window.setPagosView = setView;
 })();
 
 /* Mantiene los KPIs sincronizados si otra acción actualiza pagos o suscripciones. */
@@ -920,6 +1102,326 @@
     window.refreshPaymentKpis = refreshKpis;
     window.setInterval(refreshKpis, 30000);
 })();
+</script>
+
+<script>
+    function initPagoActions() {
+        const clientesData = <?php echo json_encode($clientesMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        const baseUrl = '<?php echo url('pagos'); ?>';
+        const moneyFormatter = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const editModalEl = document.getElementById('pagoEditModal');
+        const deleteModalEl = document.getElementById('pagoDeleteModal');
+        const editForm = document.getElementById('pagoEditForm');
+        const deleteForm = document.getElementById('pagoDeleteForm');
+        const editFeedback = document.getElementById('pagoEditFeedback');
+        const deleteFeedback = document.getElementById('pagoDeleteFeedback');
+        const editClient = document.getElementById('pagoEditCliente');
+        const editNumeroFactura = document.getElementById('pagoEditNumeroFactura');
+        const editMonto = document.getElementById('pagoEditMonto');
+        const editMetodo = document.getElementById('pagoEditMetodo');
+        const editFechaPago = document.getElementById('pagoEditFechaPago');
+        const editFechaVencimiento = document.getElementById('pagoEditFechaVencimiento');
+        const editEstado = document.getElementById('pagoEditEstado');
+        const editObservaciones = document.getElementById('pagoEditObservaciones');
+        const editSummaryFactura = document.getElementById('pagoEditSummaryFactura');
+        const editSummaryCliente = document.getElementById('pagoEditSummaryCliente');
+        const editSummaryMonto = document.getElementById('pagoEditSummaryMonto');
+        const editId = document.getElementById('pagoEditId');
+        const deleteId = document.getElementById('pagoDeleteId');
+        const deleteSummaryCliente = document.getElementById('pagoDeleteSummaryCliente');
+        const deleteSummaryFactura = document.getElementById('pagoDeleteSummaryFactura');
+        const deleteSummaryMonto = document.getElementById('pagoDeleteSummaryMonto');
+
+        if (!editModalEl || !deleteModalEl || !editForm || !deleteForm || !window.bootstrap) {
+            return;
+        }
+
+        const editModal = bootstrap.Modal.getOrCreateInstance(editModalEl);
+        const deleteModal = bootstrap.Modal.getOrCreateInstance(deleteModalEl);
+
+        function currency(value) {
+            return '$' + moneyFormatter.format(Number(value || 0));
+        }
+
+        function formatDate(value) {
+        if (!value) return '—';
+        const parts = String(value).split('-');
+        if (parts.length === 3) {
+            return parts[2] + '/' + parts[1] + '/' + parts[0];
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '—';
+        return date.toLocaleDateString('es-MX');
+    }
+
+        function normalize(value) {
+        return (value || '').toString().trim().toLowerCase();
+    }
+
+        function paymentStateConfig(estado) {
+        if (estado === 'pagado') return { className: 'bg-success-subtle text-success', label: 'Pagado', icon: 'fa-circle-check', dot: '#22c55e' };
+        if (estado === 'pendiente') return { className: 'bg-warning-subtle text-warning', label: 'Pendiente', icon: 'fa-clock', dot: '#eab308' };
+        if (estado === 'vencido') return { className: 'bg-danger-subtle text-danger', label: 'Vencido', icon: 'fa-triangle-exclamation', dot: '#ef4444' };
+        return { className: 'bg-secondary-subtle text-secondary', label: estado ? estado.charAt(0).toUpperCase() + estado.slice(1) : '—', icon: 'fa-circle', dot: '#6b7280' };
+    }
+
+        function methodIcon(metodo) {
+        if (metodo === 'transferencia') return 'fa-university';
+        if (metodo === 'efectivo') return 'fa-money-bill-wave';
+        if (metodo === 'paypal') return 'fa-paypal';
+        if (metodo === 'tarjeta') return 'fa-credit-card';
+        return 'fa-money-bill-wave';
+    }
+
+        function showFeedback(element, type, message) {
+        if (!element) return;
+        element.className = 'alert alert-' + type;
+        element.textContent = message;
+        element.classList.remove('d-none');
+    }
+
+        function hideFeedback(element) {
+        if (!element) return;
+        element.className = 'alert d-none';
+        element.textContent = '';
+    }
+
+        function setLoading(button, loading, label) {
+        if (!button) return;
+        if (loading) {
+            button.dataset.originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + label;
+            return;
+        }
+        button.disabled = false;
+        if (button.dataset.originalText) {
+            button.innerHTML = button.dataset.originalText;
+            delete button.dataset.originalText;
+        }
+    }
+
+        function findPaymentNodes(pagoId) {
+        const selector = '[data-pago-id="' + pagoId + '"]';
+        return {
+            row: document.querySelector('[data-pago-row]' + selector),
+            grid: document.querySelector('[data-pago-grid]' + selector),
+        };
+    }
+
+        function updatePaymentRoot(root, data) {
+        if (!root) return;
+
+        const estadoConfig = paymentStateConfig(data.estado || '');
+        const metodo = normalize(data.metodo_pago || '');
+        const nombre = data.cliente_nombre || '';
+        const factura = data.numero_factura || '';
+        const monto = Number(data.monto || 0);
+        const fechaPago = data.fecha_pago || '';
+        const fechaVenc = data.fecha_vencimiento || '';
+
+        root.dataset.nombre = normalize(nombre);
+        root.dataset.factura = normalize(factura);
+        root.dataset.estado = normalize(data.estado || '');
+        root.dataset.metodo = metodo;
+        root.dataset.fechaPago = fechaPago;
+
+        const nameEl = root.querySelector('[data-pago-field="cliente-nombre"]');
+        if (nameEl) nameEl.textContent = nombre;
+
+        const facturaEl = root.querySelector('[data-pago-field="factura"]');
+        if (facturaEl) facturaEl.textContent = factura;
+
+        const montoEl = root.querySelector('[data-pago-field="monto"]');
+        if (montoEl) montoEl.textContent = currency(monto).replace('$', '$');
+
+        const metodoLabelEl = root.querySelector('[data-pago-field="metodo-label"]');
+        if (metodoLabelEl) metodoLabelEl.textContent = metodo ? metodo.charAt(0).toUpperCase() + metodo.slice(1) : '—';
+
+        const metodoIconEl = root.querySelector('[data-pago-field="metodo-icon"]');
+        if (metodoIconEl) {
+            metodoIconEl.className = 'fas ' + methodIcon(metodo) + ' me-1 text-muted';
+        }
+
+        const fechaPagoEl = root.querySelector('[data-pago-field="fecha-pago"]');
+        if (fechaPagoEl) fechaPagoEl.textContent = formatDate(fechaPago);
+
+        const fechaVencEl = root.querySelector('[data-pago-field="fecha-venc"]');
+        if (fechaVencEl) fechaVencEl.textContent = formatDate(fechaVenc);
+
+        const estadoBadgeEl = root.querySelector('[data-pago-field="estado-badge"]');
+        if (estadoBadgeEl) {
+            estadoBadgeEl.className = 'estado-badge ' + estadoConfig.className;
+            estadoBadgeEl.innerHTML = '<span class="dot" style="background:' + estadoConfig.dot + ';"></span><i class="fas ' + estadoConfig.icon + '" style="font-size:.65rem;"></i><span data-pago-field="estado-label">' + estadoConfig.label + '</span>';
+        }
+    }
+
+        function removePaymentRoots(pagoId) {
+        const nodes = findPaymentNodes(pagoId);
+        if (nodes.row && nodes.row.parentNode) nodes.row.parentNode.removeChild(nodes.row);
+        if (nodes.grid && nodes.grid.parentNode) nodes.grid.parentNode.removeChild(nodes.grid);
+        if (typeof window.refreshPagosList === 'function') {
+            window.refreshPagosList();
+        }
+        if (typeof window.refreshPaymentKpis === 'function') {
+            window.refreshPaymentKpis();
+        }
+        document.dispatchEvent(new Event('pago:actualizado'));
+    }
+
+        function fillEditModal(trigger) {
+        const dataset = trigger.dataset;
+        const pagoId = dataset.pagoId || '';
+        const clienteId = dataset.clienteId || '';
+        const cliente = dataset.clienteNombre || '';
+        const factura = dataset.factura || '';
+        const monto = dataset.monto || '';
+        const fechaPago = dataset.fechaPago || '';
+        const fechaVencimiento = dataset.fechaVencimiento || '';
+        const metodo = dataset.metodo || '';
+        const estado = dataset.estado || '';
+        const observaciones = dataset.observaciones || '';
+
+        editForm.action = baseUrl + '/' + pagoId + '/edit';
+        editId.value = pagoId;
+        editClient.value = clienteId;
+        editNumeroFactura.value = factura;
+        editMonto.value = monto;
+        editMetodo.value = metodo;
+        editFechaPago.value = fechaPago;
+        editFechaVencimiento.value = fechaVencimiento;
+        editEstado.value = estado;
+        editObservaciones.value = observaciones;
+
+        if (editSummaryFactura) editSummaryFactura.textContent = factura || '—';
+        if (editSummaryCliente) editSummaryCliente.textContent = cliente || '—';
+        if (editSummaryMonto) editSummaryMonto.textContent = currency(monto || 0);
+
+        hideFeedback(editFeedback);
+        if (editModal) editModal.show();
+    }
+
+        function fillDeleteModal(trigger) {
+        const dataset = trigger.dataset;
+        const pagoId = dataset.pagoId || '';
+        const cliente = dataset.clienteNombre || '';
+        const factura = dataset.factura || '';
+        const monto = dataset.monto || '';
+
+        deleteForm.action = baseUrl + '/' + pagoId + '/delete';
+        deleteId.value = pagoId;
+        if (deleteSummaryCliente) deleteSummaryCliente.textContent = cliente || '—';
+        if (deleteSummaryFactura) deleteSummaryFactura.textContent = factura || '—';
+        if (deleteSummaryMonto) deleteSummaryMonto.textContent = currency(monto || 0);
+
+        hideFeedback(deleteFeedback);
+        if (deleteModal) deleteModal.show();
+    }
+
+        function syncEditClientHint() {
+        if (!editClient) return;
+        const clientId = editClient.value;
+        const client = clientesData[clientId];
+        if (!client) {
+            return;
+        }
+    }
+
+        async function submitEditForm(event) {
+        event.preventDefault();
+        hideFeedback(editFeedback);
+
+        const submitButton = editForm.querySelector('button[type="submit"]');
+        setLoading(submitButton, true, 'Guardando...');
+
+        try {
+            const response = await fetch(editForm.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(editForm),
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                showFeedback(editFeedback, 'danger', payload.message || 'No se pudo actualizar el pago');
+                return;
+            }
+
+            const data = payload.data || {};
+            const nodes = findPaymentNodes(data.id);
+            updatePaymentRoot(nodes.row, data);
+            updatePaymentRoot(nodes.grid, data);
+            showFeedback(editFeedback, 'success', payload.message || 'Pago actualizado correctamente');
+            if (typeof window.refreshPagosList === 'function') window.refreshPagosList();
+            if (typeof window.refreshPaymentKpis === 'function') window.refreshPaymentKpis();
+            document.dispatchEvent(new Event('pago:actualizado'));
+            setTimeout(() => editModal && editModal.hide(), 250);
+        } catch (error) {
+            showFeedback(editFeedback, 'danger', 'No se pudo actualizar el pago');
+        } finally {
+            setLoading(submitButton, false, 'Guardando...');
+        }
+    }
+
+        async function submitDeleteForm(event) {
+        event.preventDefault();
+        hideFeedback(deleteFeedback);
+
+        const submitButton = deleteForm.querySelector('button[type="submit"]');
+        setLoading(submitButton, true, 'Eliminando...');
+
+        try {
+            const response = await fetch(deleteForm.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(deleteForm),
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                showFeedback(deleteFeedback, 'danger', payload.message || 'No se pudo eliminar el pago');
+                return;
+            }
+
+            removePaymentRoots(deleteId.value);
+            showFeedback(deleteFeedback, 'success', payload.message || 'Pago eliminado correctamente');
+            setTimeout(() => deleteModal && deleteModal.hide(), 250);
+        } catch (error) {
+            showFeedback(deleteFeedback, 'danger', 'No se pudo eliminar el pago');
+        } finally {
+            setLoading(submitButton, false, 'Eliminando...');
+        }
+    }
+
+        function initTooltips() {
+        if (!window.bootstrap || !bootstrap.Tooltip) {
+            return;
+        }
+
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((element) => {
+            if (!element.dataset.tooltipInit) {
+                element.dataset.tooltipInit = '1';
+                new bootstrap.Tooltip(element);
+            }
+        });
+    }
+
+        document.querySelectorAll('.js-pago-edit').forEach((button) => button.addEventListener('click', () => fillEditModal(button)));
+        document.querySelectorAll('.js-pago-delete').forEach((button) => button.addEventListener('click', () => fillDeleteModal(button)));
+        editForm.addEventListener('submit', submitEditForm);
+        deleteForm.addEventListener('submit', submitDeleteForm);
+
+        if (editClient) {
+            editClient.addEventListener('change', syncEditClientHint);
+        }
+
+        initTooltips();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPagoActions, { once: true });
+    } else {
+        initPagoActions();
+    }
 </script>
 
 <?php include 'views/layouts/footer.php'; ?>

@@ -9,12 +9,14 @@ class PagoController {
         $pagos = $pagoModel->getAll();
         $proximosVencimientos = $pagoModel->getProximosVencimientos();
         $kpis = $pagoModel->getKpis();
+        $clientes = (new Cliente())->getAll();
         
         $data = [
             'title' => 'Pagos y Facturación - ' . APP_NAME,
             'pagos' => $pagos,
             'proximosVencimientos' => $proximosVencimientos,
-            'kpis' => $kpis
+            'kpis' => $kpis,
+            'clientes' => $clientes,
         ];
         
         $this->loadView('pagos/index', $data);
@@ -66,6 +68,122 @@ class PagoController {
         ];
         
         $this->loadView('pagos/create', $data);
+    }
+
+    public function edit($id) {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->sendJson(['success' => false, 'message' => 'Método no permitido'], 405);
+            return;
+        }
+
+        $pagoId = (int)$id;
+        if ($pagoId <= 0) {
+            $this->sendJson(['success' => false, 'message' => 'ID de pago inválido'], 400);
+            return;
+        }
+
+        $pagoModel = new Pago();
+        $pagoActual = $pagoModel->getById($pagoId);
+        if (!$pagoActual) {
+            $this->sendJson(['success' => false, 'message' => 'Pago no encontrado'], 404);
+            return;
+        }
+
+        $clienteId = (int)($_POST['cliente_id'] ?? 0);
+        $monto = trim((string)($_POST['monto'] ?? ''));
+        $fechaPago = trim((string)($_POST['fecha_pago'] ?? ''));
+        $metodoPago = trim((string)($_POST['metodo_pago'] ?? ''));
+        $estado = trim((string)($_POST['estado'] ?? ''));
+        $numeroFactura = trim((string)($_POST['numero_factura'] ?? ($pagoActual['numero_factura'] ?? '')));
+        $observaciones = trim((string)($_POST['observaciones'] ?? ''));
+
+        $errores = [];
+        if ($clienteId <= 0) $errores[] = 'El cliente es obligatorio';
+        if ($monto === '' || !is_numeric($monto) || (float)$monto <= 0) $errores[] = 'El monto debe ser mayor a cero';
+        if ($fechaPago === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaPago) || strtotime($fechaPago) === false) $errores[] = 'La fecha de pago no es válida';
+        if (!in_array($metodoPago, ['transferencia', 'efectivo', 'paypal', 'tarjeta'], true)) $errores[] = 'El método de pago no es válido';
+        if (!in_array($estado, ['pagado', 'pendiente', 'vencido'], true)) $errores[] = 'El estado no es válido';
+
+        if ($errores) {
+            $this->sendJson(['success' => false, 'message' => implode('. ', $errores)], 422);
+            return;
+        }
+
+        try {
+            $pagoModel->id = $pagoId;
+            $pagoModel->cliente_id = $clienteId;
+            $pagoModel->monto = $monto;
+            $pagoModel->fecha_pago = $fechaPago;
+            $pagoModel->metodo_pago = $metodoPago;
+            $pagoModel->estado = $estado;
+            $pagoModel->numero_factura = $numeroFactura !== '' ? $numeroFactura : ($pagoActual['numero_factura'] ?? '');
+            $pagoModel->observaciones = $observaciones;
+
+            if ($pagoModel->update()) {
+                $updated = $pagoModel->getById($pagoId);
+                $this->sendJson([
+                    'success' => true,
+                    'message' => 'Pago actualizado exitosamente',
+                    'data' => $updated,
+                ]);
+                return;
+            }
+
+            $this->sendJson(['success' => false, 'message' => 'No se pudo actualizar el pago'], 500);
+        } catch (InvalidArgumentException $e) {
+            $this->sendJson(['success' => false, 'message' => $e->getMessage()], 400);
+        } catch (RuntimeException $e) {
+            $this->sendJson(['success' => false, 'message' => $e->getMessage()], 409);
+        } catch (PDOException $e) {
+            error_log('PagoController@edit database error (pago ' . $pagoId . '): ' . $e->getMessage());
+            $this->sendJson(['success' => false, 'message' => 'Error de base de datos al actualizar el pago'], 500);
+        } catch (Throwable $e) {
+            error_log('PagoController@edit unexpected error (pago ' . $pagoId . '): ' . $e->getMessage());
+            $this->sendJson(['success' => false, 'message' => 'Error inesperado al actualizar el pago'], 500);
+        }
+    }
+
+    public function delete($id) {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->sendJson(['success' => false, 'message' => 'Método no permitido'], 405);
+            return;
+        }
+
+        $pagoId = (int)$id;
+        if ($pagoId <= 0) {
+            $this->sendJson(['success' => false, 'message' => 'ID de pago inválido'], 400);
+            return;
+        }
+
+        try {
+            $pagoModel = new Pago();
+            $pago = $pagoModel->getById($pagoId);
+            if (!$pago) {
+                $this->sendJson(['success' => false, 'message' => 'Pago no encontrado'], 404);
+                return;
+            }
+
+            if ($pagoModel->delete($pagoId)) {
+                $this->sendJson([
+                    'success' => true,
+                    'message' => 'Pago eliminado exitosamente',
+                    'data' => ['pago_id' => $pagoId],
+                ]);
+                return;
+            }
+
+            $this->sendJson(['success' => false, 'message' => 'No se pudo eliminar el pago'], 500);
+        } catch (InvalidArgumentException $e) {
+            $this->sendJson(['success' => false, 'message' => $e->getMessage()], 400);
+        } catch (RuntimeException $e) {
+            $this->sendJson(['success' => false, 'message' => $e->getMessage()], 409);
+        } catch (PDOException $e) {
+            error_log('PagoController@delete database error (pago ' . $pagoId . '): ' . $e->getMessage());
+            $this->sendJson(['success' => false, 'message' => 'Error de base de datos al eliminar el pago'], 500);
+        } catch (Throwable $e) {
+            error_log('PagoController@delete unexpected error (pago ' . $pagoId . '): ' . $e->getMessage());
+            $this->sendJson(['success' => false, 'message' => 'Error inesperado al eliminar el pago'], 500);
+        }
     }
     
     public function show($id) {
@@ -197,6 +315,12 @@ class PagoController {
     private function loadView($view, $data = []) {
         extract($data);
         require_once "views/{$view}.php";
+    }
+
+    private function sendJson(array $payload, int $statusCode = 200): void {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code($statusCode);
+        echo json_encode($payload);
     }
 }
 ?>
