@@ -369,6 +369,13 @@
                                 <?php else: ?>
                                     —
                                 <?php endif; ?>
+                                <div class="btn-group btn-group-sm mt-1" role="group">
+                                    <a class="btn btn-outline-primary" href="<?php echo url('clientes/' . (int)$r['id']); ?>" title="Ver cliente"><i class="fas fa-eye"></i></a>
+                                    <a class="btn btn-outline-warning" href="<?php echo url('clientes/' . (int)$r['id'] . '/edit'); ?>" title="Editar cliente"><i class="fas fa-pen"></i></a>
+                                    <form method="POST" action="<?php echo url('clientes/' . (int)$r['id'] . '/delete'); ?>" class="d-inline" onsubmit="return confirm('¿Eliminar este cliente y todos sus registros asociados? Esta acción no se puede deshacer.');">
+                                        <button type="submit" class="btn btn-outline-danger" title="Eliminar cliente"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
                             </td>
                             <td class="text-center">
                                 <span class="badge sus-badge <?php echo htmlspecialchars($statusBadge); ?>">

@@ -6,7 +6,10 @@
     <script>
         // Auto-hide alerts after 5 seconds
         setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
+            // Solo los avisos de página se cierran automáticamente. Los avisos
+            // internos de modales (por ejemplo, el resumen de eliminación)
+            // deben permanecer visibles mientras el usuario decide.
+            const alerts = document.querySelectorAll('.alert[role="alert"]');
             alerts.forEach(function(alert) {
                 const bsAlert = new bootstrap.Alert(alert);
                 bsAlert.close();

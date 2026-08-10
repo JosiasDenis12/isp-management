@@ -2,7 +2,7 @@
 class Database {
     private $host = 'localhost';
     private $db_name = 'isp_management';
-    private $username = 'roxot';
+    private $username = 'root';
     private $password = '';
     private $conn;
 

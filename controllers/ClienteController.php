@@ -182,23 +182,94 @@ class ClienteController {
     
     public function delete($id) {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            if ($this->isAjaxRequest()) {
+                $this->sendJson(['success' => false, 'message' => 'Método no permitido'], 405);
+                return;
+            }
             header('Location: ' . url('clientes'));
             exit;
         }
-        
-        $clienteModel = new Cliente();
-        
-        try {
-            if ($clienteModel->delete($id)) {
-                header('Location: ' . url('clientes') . '?success=' . urlencode('Cliente eliminado exitosamente'));
-            } else {
-                header('Location: ' . url('clientes') . '?error=' . urlencode('Error al eliminar el cliente'));
+
+        $clienteId = (int)$id;
+        if ($clienteId <= 0) {
+            if ($this->isAjaxRequest()) {
+                $this->sendJson(['success' => false, 'message' => 'Cliente inválido'], 400);
+                return;
             }
-        } catch (Exception $e) {
-            header('Location: ' . url('clientes') . '?error=' . urlencode('Error: ' . $e->getMessage()));
+            header('Location: ' . url('clientes') . '?error=' . urlencode('Cliente inválido'));
+            exit;
         }
-        
+
+        $clienteModel = new Cliente();
+
+        try {
+            $resultado = $clienteModel->deleteWithDependencies($clienteId);
+
+            if ($this->isAjaxRequest()) {
+                $this->sendJson([
+                    'success' => true,
+                    'message' => 'Cliente y registros asociados eliminados exitosamente',
+                    'data' => $resultado,
+                ]);
+                return;
+            }
+
+            header('Location: ' . url('clientes') . '?success=' . urlencode('Cliente y registros asociados eliminados exitosamente'));
+        } catch (InvalidArgumentException $e) {
+            if ($this->isAjaxRequest()) {
+                $this->sendJson(['success' => false, 'message' => $e->getMessage()], 400);
+                return;
+            }
+            header('Location: ' . url('clientes') . '?error=' . urlencode($e->getMessage()));
+        } catch (RuntimeException $e) {
+            if ($this->isAjaxRequest()) {
+                $this->sendJson(['success' => false, 'message' => $e->getMessage()], 404);
+                return;
+            }
+            header('Location: ' . url('clientes') . '?error=' . urlencode($e->getMessage()));
+        } catch (Throwable $e) {
+            error_log('ClienteController@delete error (cliente ' . $clienteId . '): ' . $e->getMessage());
+
+            $mensaje = 'No fue posible eliminar el cliente. No se realizaron cambios en la base de datos. Intenta nuevamente.';
+
+            if ($this->isAjaxRequest()) {
+                $this->sendJson(['success' => false, 'message' => $mensaje], 500);
+                return;
+            }
+
+            header('Location: ' . url('clientes') . '?error=' . urlencode($mensaje));
+        }
+
         exit;
+    }
+
+    public function deleteSummary($id) {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            $this->sendJson(['success' => false, 'message' => 'Método no permitido'], 405);
+            return;
+        }
+
+        $clienteId = (int)$id;
+        if ($clienteId <= 0) {
+            $this->sendJson(['success' => false, 'message' => 'Cliente inválido'], 400);
+            return;
+        }
+
+        try {
+            $resumen = (new Cliente())->getDeleteImpact($clienteId);
+            $this->sendJson([
+                'success' => true,
+                'message' => 'Resumen generado',
+                'data' => $resumen,
+            ]);
+        } catch (InvalidArgumentException $e) {
+            $this->sendJson(['success' => false, 'message' => $e->getMessage()], 400);
+        } catch (RuntimeException $e) {
+            $this->sendJson(['success' => false, 'message' => $e->getMessage()], 404);
+        } catch (Throwable $e) {
+            error_log('ClienteController@deleteSummary error (cliente ' . $clienteId . '): ' . $e->getMessage());
+            $this->sendJson(['success' => false, 'message' => 'No fue posible obtener el resumen de eliminación'], 500);
+        }
     }
     
     public function updateStatus($id) {
@@ -253,6 +324,17 @@ class ClienteController {
     private function loadView($view, $data = []) {
         extract($data);
         require_once "views/{$view}.php";
+    }
+
+    private function sendJson(array $payload, int $statusCode = 200): void {
+        http_response_code($statusCode);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload);
+    }
+
+    private function isAjaxRequest(): bool {
+        return strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest'
+            || strpos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false;
     }
 }
 ?>

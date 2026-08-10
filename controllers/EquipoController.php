@@ -311,13 +311,16 @@ class EquipoController {
             exit;
         }
 
-        $equipoModel->id = (int)$id;
-        if ($equipoModel->delete()) {
-            header('Location: ' . url('equipos') . '?success=' . urlencode('Equipo eliminado correctamente'));
+        try {
+            $equipoModel->id = (int)$id;
+            $equipoModel->delete();
+            header('Location: ' . url('equipos') . '?success=' . urlencode('Equipo y visitas relacionadas eliminados correctamente'));
             exit;
+        } catch (Throwable $e) {
+            error_log('EquipoController@delete error (equipo ' . (int)$id . '): ' . $e->getMessage());
         }
 
-        header('Location: ' . url('equipos/' . $id) . '?error=' . urlencode('No se pudo eliminar el equipo'));
+        header('Location: ' . url('equipos/' . $id) . '?error=' . urlencode('No fue posible eliminar el equipo. No se realizaron cambios.'));
         exit;
     }
 

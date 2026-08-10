@@ -39,6 +39,7 @@ $router->addRoute('POST', '/clientes/create', 'ClienteController', 'create');
 $router->addRoute('GET', '/clientes/{id}', 'ClienteController', 'show');
 $router->addRoute('GET', '/clientes/{id}/edit', 'ClienteController', 'edit');
 $router->addRoute('POST', '/clientes/{id}/edit', 'ClienteController', 'edit');
+$router->addRoute('GET', '/clientes/{id}/delete-summary', 'ClienteController', 'deleteSummary');
 $router->addRoute('POST', '/clientes/{id}/delete', 'ClienteController', 'delete');
 $router->addRoute('GET', '/clientes/{id}/update-status', 'ClienteController', 'updateStatus');
 

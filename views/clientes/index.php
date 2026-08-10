@@ -1,5 +1,5 @@
 <?php include 'views/layouts/header.php'; ?>
-<style>.client-card.client-card-vencido{border:2px solid #dc3545;background:#fff7f7}.billing-alert{border-radius:.5rem}</style>
+<style>.client-card.client-card-vencido{border:2px solid #dc3545;background:#fff7f7}.billing-alert{border-radius:.5rem}.btn-delete-client[disabled]{opacity:.8;pointer-events:none}</style>
 
 <?php
     $clientes = $clientes ?? [];
@@ -274,6 +274,17 @@
                                     <li><a class="dropdown-item" href="<?php echo url('clientes/' . ($cliente['id'] ?? '')); ?>"><i class="fas fa-eye me-2"></i>Ver detalles</a></li>
                                     <li><a class="dropdown-item" href="<?php echo url('clientes/' . ($cliente['id'] ?? '') . '/edit'); ?>"><i class="fas fa-pen me-2"></i>Editar</a></li>
                                     <li><a class="dropdown-item" href="<?php echo url('pagos?cliente=' . ($cliente['id'] ?? '')); ?>"><i class="fas fa-dollar-sign me-2"></i>Pagos</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button
+                                            type="button"
+                                            class="dropdown-item text-danger btn-open-delete-modal"
+                                            data-cliente-id="<?php echo (int)($cliente['id'] ?? 0); ?>"
+                                            data-cliente-nombre="<?php echo htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8'); ?>"
+                                        >
+                                            <i class="fas fa-trash me-2"></i>Eliminar
+                                        </button>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -334,6 +345,18 @@
                                 <i class="fas fa-pen me-2"></i>
                                 Editar
                             </a>
+                            <button
+                                type="button"
+                                class="btn btn-outline-danger btn-sm btn-open-delete-modal"
+                                data-cliente-id="<?php echo (int)($cliente['id'] ?? 0); ?>"
+                                data-cliente-nombre="<?php echo htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-bs-toggle="tooltip"
+                                title="Eliminar cliente y toda su información asociada"
+                                aria-label="Eliminar cliente"
+                            >
+                                <i class="fas fa-trash me-2"></i>
+                                Eliminar
+                            </button>
                             <a href="<?php echo url('pagos?cliente=' . ($cliente['id'] ?? '')); ?>" class="btn btn-outline-success btn-sm">
                                 <i class="fas fa-dollar-sign me-2"></i>
                                 Pagos
@@ -363,8 +386,49 @@
         </div>
     </div>
 
+    <div class="modal fade" id="deleteClienteModal" tabindex="-1" aria-labelledby="deleteClienteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteClienteModalLabel">
+                        <i class="fas fa-triangle-exclamation text-danger me-2"></i>
+                        Eliminar cliente
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Estás a punto de eliminar permanentemente:</p>
+                    <h6 class="fw-bold mb-3" id="deleteClienteNombre">—</h6>
+
+                    <div class="alert alert-warning mb-3 py-2" id="deleteClienteSummaryState">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Cargando información asociada...
+                    </div>
+
+                    <ul class="list-group list-group-flush mb-3" id="deleteClienteSummaryList">
+                        <li class="list-group-item d-flex justify-content-between px-0"><span>Equipos</span><strong id="deleteCountEquipos">0</strong></li>
+                        <li class="list-group-item d-flex justify-content-between px-0"><span>Instalaciones</span><strong id="deleteCountInstalaciones">0</strong></li>
+                        <li class="list-group-item d-flex justify-content-between px-0"><span>Pagos</span><strong id="deleteCountPagos">0</strong></li>
+                        <li class="list-group-item d-flex justify-content-between px-0"><span>Visitas técnicas</span><strong id="deleteCountVisitas">0</strong></li>
+                    </ul>
+
+                    <div class="small text-muted">Esta acción no se puede deshacer.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="deleteClienteCancelBtn" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger btn-delete-client" id="deleteClienteConfirmBtn" disabled>
+                        <span class="btn-text"><i class="fas fa-trash me-1"></i>Eliminar permanentemente</span>
+                        <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Eliminando...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        (function initClientesList() {
+        function initClientesList() {
+            const summaryUrlTpl = '<?php echo url('clientes/__ID__/delete-summary'); ?>';
+            const deleteUrlTpl = '<?php echo url('clientes/__ID__/delete'); ?>';
             const searchInput = document.getElementById('clientesSearch');
             const estadoSelect = document.getElementById('clientesEstado');
             const tipoSelect = document.getElementById('clientesTipo');
@@ -375,12 +439,125 @@
             const pageSizeSelect = document.getElementById('clientesPageSize');
             const gridBtn = document.getElementById('clientesGridBtn');
             const listBtn = document.getElementById('clientesListBtn');
+            const deleteButtons = Array.from(document.querySelectorAll('.btn-open-delete-modal'));
+            const deleteModalEl = document.getElementById('deleteClienteModal');
+            const deleteModal = (window.bootstrap && deleteModalEl) ? new bootstrap.Modal(deleteModalEl) : null;
+            const deleteNombreEl = document.getElementById('deleteClienteNombre');
+            const deleteStateEl = document.getElementById('deleteClienteSummaryState');
+            const deleteConfirmBtn = document.getElementById('deleteClienteConfirmBtn');
+            const deleteCancelBtn = document.getElementById('deleteClienteCancelBtn');
+            const deleteCountEquipos = document.getElementById('deleteCountEquipos');
+            const deleteCountInstalaciones = document.getElementById('deleteCountInstalaciones');
+            const deleteCountPagos = document.getElementById('deleteCountPagos');
+            const deleteCountVisitas = document.getElementById('deleteCountVisitas');
 
             const cards = Array.from(document.querySelectorAll('[data-client-card]'));
 
             let page = 1;
             let pageSize = parseInt(pageSizeSelect ? pageSizeSelect.value : '10', 10);
             let currentView = 'grid';
+            let deleting = false;
+            let selectedClienteId = null;
+            let selectedClienteNombre = '';
+
+            function endpointFromTemplate(tpl, id) {
+                return tpl.replace('__ID__', String(id));
+            }
+
+            function setDeleteButtonLoading(isLoading) {
+                if (!deleteConfirmBtn) return;
+                const txt = deleteConfirmBtn.querySelector('.btn-text');
+                const loading = deleteConfirmBtn.querySelector('.btn-loading');
+                deleteConfirmBtn.disabled = isLoading || !selectedClienteId;
+                if (deleteCancelBtn) deleteCancelBtn.disabled = isLoading;
+                if (txt) txt.classList.toggle('d-none', isLoading);
+                if (loading) loading.classList.toggle('d-none', !isLoading);
+            }
+
+            function renderDeleteCounts(counts) {
+                if (deleteCountEquipos) deleteCountEquipos.textContent = String(counts.equipos || 0);
+                if (deleteCountInstalaciones) deleteCountInstalaciones.textContent = String(counts.instalaciones || 0);
+                if (deleteCountPagos) deleteCountPagos.textContent = String(counts.pagos || 0);
+                if (deleteCountVisitas) deleteCountVisitas.textContent = String(counts.visitas_tecnicas || 0);
+            }
+
+            function setDeleteState(message, kind) {
+                if (!deleteStateEl) return;
+                deleteStateEl.className = 'alert mb-3 py-2';
+                if (kind === 'loading') {
+                    deleteStateEl.classList.add('alert-warning');
+                    deleteStateEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + message;
+                    return;
+                }
+                if (kind === 'error') {
+                    deleteStateEl.classList.add('alert-danger');
+                    deleteStateEl.innerHTML = '<i class="fas fa-circle-exclamation me-2"></i>' + message;
+                    return;
+                }
+                deleteStateEl.classList.add('alert-warning');
+                deleteStateEl.innerHTML = '<i class="fas fa-triangle-exclamation me-2"></i>' + message;
+            }
+
+            async function openDeleteModal(clienteId, clienteNombre) {
+                selectedClienteId = Number(clienteId || 0);
+                selectedClienteNombre = (clienteNombre || '').trim();
+
+                if (!selectedClienteId || !deleteModal) return;
+
+                renderDeleteCounts({});
+                if (deleteNombreEl) deleteNombreEl.textContent = selectedClienteNombre || 'Cliente #' + selectedClienteId;
+                setDeleteState('Cargando información asociada...', 'loading');
+                setDeleteButtonLoading(false);
+                deleteModal.show();
+                if (deleteConfirmBtn) deleteConfirmBtn.disabled = true;
+
+                try {
+                    const resp = await fetch(endpointFromTemplate(summaryUrlTpl, selectedClienteId), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) {
+                        throw new Error(data.message || 'No fue posible obtener el resumen de eliminación.');
+                    }
+
+                    const counts = (data.data && data.data.counts) ? data.data.counts : {};
+                    renderDeleteCounts(counts);
+                    setDeleteState('Esta acción eliminará permanentemente todos los registros listados para este cliente.', 'ready');
+                    if (deleteConfirmBtn) deleteConfirmBtn.disabled = false;
+                } catch (err) {
+                    setDeleteState('No fue posible obtener el resumen de eliminación. Intenta nuevamente.', 'error');
+                    if (deleteConfirmBtn) deleteConfirmBtn.disabled = true;
+                }
+            }
+
+            async function confirmDeleteCliente() {
+                if (deleting || !selectedClienteId) return;
+                deleting = true;
+                setDeleteButtonLoading(true);
+
+                try {
+                    const resp = await fetch(endpointFromTemplate(deleteUrlTpl, selectedClienteId), {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) {
+                        throw new Error(data.message || 'No fue posible eliminar el cliente.');
+                    }
+
+                    if (deleteModal) deleteModal.hide();
+                    const msg = encodeURIComponent(data.message || 'Cliente eliminado exitosamente');
+                    window.location.href = '<?php echo url('clientes'); ?>?success=' + msg;
+                } catch (err) {
+                    setDeleteState('No fue posible eliminar el cliente. No se realizaron cambios en la base de datos. Intenta nuevamente.', 'error');
+                    setDeleteButtonLoading(false);
+                } finally {
+                    deleting = false;
+                }
+            }
 
             function normalize(v) {
                 return (v || '').toString().trim().toLowerCase();
@@ -520,9 +697,44 @@
             if (gridBtn) gridBtn.addEventListener('click', () => { setView('grid'); update(); });
             if (listBtn) listBtn.addEventListener('click', () => { setView('list'); update(); });
 
+            deleteButtons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    openDeleteModal(btn.getAttribute('data-cliente-id'), btn.getAttribute('data-cliente-nombre'));
+                });
+            });
+
+            if (deleteConfirmBtn) {
+                deleteConfirmBtn.addEventListener('click', confirmDeleteCliente);
+            }
+
+            if (deleteModalEl) {
+                deleteModalEl.addEventListener('hidden.bs.modal', () => {
+                    selectedClienteId = null;
+                    selectedClienteNombre = '';
+                    deleting = false;
+                    setDeleteButtonLoading(false);
+                    if (deleteConfirmBtn) deleteConfirmBtn.disabled = true;
+                    renderDeleteCounts({});
+                });
+            }
+
+            if (window.bootstrap) {
+                document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+                    if (!bootstrap.Tooltip.getInstance(el)) {
+                        new bootstrap.Tooltip(el);
+                    }
+                });
+            }
+
             setView('grid');
             update();
-        })();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initClientesList, { once: true });
+        } else {
+            initClientesList();
+        }
     </script>
 <?php endif; ?>
 

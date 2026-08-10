@@ -363,6 +363,11 @@ function reporteFecha($value, $format = 'd/m/Y H:i') {
                                     <a class="btn btn-outline-secondary" href="<?php echo url('equipos/' . (int)$row['equipo_id'] . '/visitas/' . (int)$row['visita_id'] . '/edit'); ?>" title="Editar visita">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    <form method="POST" action="<?php echo url('equipos/' . (int)$row['equipo_id'] . '/visitas/' . (int)$row['visita_id'] . '/delete'); ?>" class="d-inline" onsubmit="return confirm('¿Eliminar esta visita técnica? Esta acción no se puede deshacer.');">
+                                        <button type="submit" class="btn btn-outline-danger" title="Eliminar visita">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

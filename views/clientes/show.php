@@ -493,20 +493,28 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>¿Está seguro de que desea eliminar el cliente <strong><?php echo htmlspecialchars($cliente['nombre']); ?></strong>?</p>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Advertencia:</strong> Esta acción no se puede deshacer. Se eliminarán todos los datos relacionados con este cliente.
+                <p>Estás a punto de eliminar permanentemente:</p>
+                <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($cliente['nombre']); ?></h6>
+                <div class="alert alert-warning mb-3 py-2" id="deleteSummaryState">
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Cargando información asociada...
                 </div>
+
+                <ul class="list-group list-group-flush mb-3" id="deleteSummaryList">
+                    <li class="list-group-item d-flex justify-content-between px-0"><span>Equipos</span><strong id="deleteCountEquipos">0</strong></li>
+                    <li class="list-group-item d-flex justify-content-between px-0"><span>Instalaciones</span><strong id="deleteCountInstalaciones">0</strong></li>
+                    <li class="list-group-item d-flex justify-content-between px-0"><span>Pagos</span><strong id="deleteCountPagos">0</strong></li>
+                    <li class="list-group-item d-flex justify-content-between px-0"><span>Visitas técnicas</span><strong id="deleteCountVisitas">0</strong></li>
+                </ul>
+
+                <div class="small text-muted">Esta acción no se puede deshacer.</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form method="POST" action="<?php echo url('clientes/' . $cliente['id'] . '/delete'); ?>" class="d-inline">
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash me-1"></i>
-                        Eliminar Cliente
-                    </button>
-                </form>
+                <button type="button" class="btn btn-danger" id="deleteClienteConfirmBtn" disabled>
+                    <span class="btn-text"><i class="fas fa-trash me-1"></i>Eliminar permanentemente</span>
+                    <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Eliminando...</span>
+                </button>
             </div>
         </div>
     </div>
@@ -540,6 +548,107 @@ function cambiarEstado(estadoActual) {
         window.location.href = `<?php echo url('clientes/' . $cliente['id'] . '/update-status'); ?>?estado=${nuevoEstado}`;
     }
 }
+
+(function initDeleteClienteModal() {
+    const clienteId = <?php echo (int)$cliente['id']; ?>;
+    const summaryUrl = '<?php echo url('clientes/' . $cliente['id'] . '/delete-summary'); ?>';
+    const deleteUrl = '<?php echo url('clientes/' . $cliente['id'] . '/delete'); ?>';
+
+    const modalEl = document.getElementById('deleteModal');
+    if (!modalEl) return;
+
+    const stateEl = document.getElementById('deleteSummaryState');
+    const confirmBtn = document.getElementById('deleteClienteConfirmBtn');
+    const countEquipos = document.getElementById('deleteCountEquipos');
+    const countInstalaciones = document.getElementById('deleteCountInstalaciones');
+    const countPagos = document.getElementById('deleteCountPagos');
+    const countVisitas = document.getElementById('deleteCountVisitas');
+
+    let deleting = false;
+
+    function renderCounts(counts) {
+        countEquipos.textContent = String(counts.equipos || 0);
+        countInstalaciones.textContent = String(counts.instalaciones || 0);
+        countPagos.textContent = String(counts.pagos || 0);
+        countVisitas.textContent = String(counts.visitas_tecnicas || 0);
+    }
+
+    function setState(message, kind) {
+        if (!stateEl) return;
+        stateEl.className = 'alert mb-3 py-2';
+        if (kind === 'loading') {
+            stateEl.classList.add('alert-warning');
+            stateEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + message;
+            return;
+        }
+        if (kind === 'error') {
+            stateEl.classList.add('alert-danger');
+            stateEl.innerHTML = '<i class="fas fa-circle-exclamation me-2"></i>' + message;
+            return;
+        }
+        stateEl.classList.add('alert-warning');
+        stateEl.innerHTML = '<i class="fas fa-triangle-exclamation me-2"></i>' + message;
+    }
+
+    function setLoading(isLoading) {
+        if (!confirmBtn) return;
+        const txt = confirmBtn.querySelector('.btn-text');
+        const loading = confirmBtn.querySelector('.btn-loading');
+        confirmBtn.disabled = isLoading;
+        if (txt) txt.classList.toggle('d-none', isLoading);
+        if (loading) loading.classList.toggle('d-none', !isLoading);
+    }
+
+    async function fetchSummary() {
+        setState('Cargando información asociada...', 'loading');
+        renderCounts({});
+        if (confirmBtn) confirmBtn.disabled = true;
+
+        try {
+            const resp = await fetch(summaryUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                throw new Error(data.message || 'No fue posible obtener el resumen de eliminación.');
+            }
+
+            renderCounts((data.data && data.data.counts) ? data.data.counts : {});
+            setState('Esta acción eliminará permanentemente todos los registros listados para este cliente.', 'ready');
+            if (confirmBtn) confirmBtn.disabled = false;
+        } catch (err) {
+            setState('No fue posible obtener el resumen de eliminación. Intenta nuevamente.', 'error');
+            if (confirmBtn) confirmBtn.disabled = true;
+        }
+    }
+
+    async function deleteCliente() {
+        if (deleting || !clienteId) return;
+        deleting = true;
+        setLoading(true);
+
+        try {
+            const resp = await fetch(deleteUrl, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                throw new Error(data.message || 'No fue posible eliminar el cliente.');
+            }
+
+            const msg = encodeURIComponent(data.message || 'Cliente eliminado exitosamente');
+            window.location.href = '<?php echo url('clientes'); ?>?success=' + msg;
+        } catch (err) {
+            setState('No fue posible eliminar el cliente. No se realizaron cambios en la base de datos. Intenta nuevamente.', 'error');
+            setLoading(false);
+            deleting = false;
+        }
+    }
+
+    modalEl.addEventListener('show.bs.modal', fetchSummary);
+    if (confirmBtn) confirmBtn.addEventListener('click', deleteCliente);
+})();
 </script>
 
 <?php include 'views/layouts/footer.php'; ?>

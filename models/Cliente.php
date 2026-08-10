@@ -163,10 +163,177 @@ class Cliente {
     }
     
     public function delete($id) {
-        $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':id', $id);
-        return $stmt->execute();
+        $resultado = $this->deleteWithDependencies((int)$id);
+        return (bool)($resultado['deleted'] ?? false);
+    }
+
+    public function getDeleteImpact(int $id): array {
+        $id = (int)$id;
+        if ($id <= 0) {
+            throw new InvalidArgumentException('ID de cliente inválido');
+        }
+
+        $cliente = $this->getById($id);
+        if (!$cliente) {
+            throw new RuntimeException('Cliente no encontrado');
+        }
+
+        $counts = [
+            'pagos' => $this->countByClienteId('pagos', $id),
+            'equipos' => $this->countByClienteId('equipos', $id),
+            'instalaciones' => $this->countByClienteId('instalaciones', $id),
+            'visitas_tecnicas' => $this->countVisitasByCliente($id),
+        ];
+
+        return [
+            'cliente' => [
+                'id' => (int)$cliente['id'],
+                'nombre' => (string)($cliente['nombre'] ?? ''),
+            ],
+            'counts' => $counts,
+            'total_relacionados' => array_sum($counts),
+            'fk_audit' => $this->getForeignKeyAudit(),
+        ];
+    }
+
+    public function deleteWithDependencies(int $id): array {
+        $id = (int)$id;
+        if ($id <= 0) {
+            throw new InvalidArgumentException('ID de cliente inválido');
+        }
+
+        $this->conn->beginTransaction();
+
+        try {
+            $cliente = $this->lockClienteById($id);
+            if (!$cliente) {
+                throw new RuntimeException('Cliente no encontrado');
+            }
+
+            $impacto = $this->getDeleteImpact($id);
+
+            $deletedVisitas = $this->deleteVisitasByCliente($id);
+            $deletedPagos = $this->deleteByClienteId('pagos', $id);
+            $deletedEquipos = $this->deleteByClienteId('equipos', $id);
+            $deletedInstalaciones = $this->deleteByClienteId('instalaciones', $id);
+
+            $stmtCliente = $this->conn->prepare('DELETE FROM clientes WHERE id = :id LIMIT 1');
+            $stmtCliente->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmtCliente->execute();
+            if ($stmtCliente->rowCount() !== 1) {
+                throw new RuntimeException('No fue posible eliminar el cliente.');
+            }
+
+            $this->conn->commit();
+
+            return [
+                'deleted' => true,
+                'cliente' => [
+                    'id' => $id,
+                    'nombre' => (string)($cliente['nombre'] ?? ''),
+                ],
+                'impact' => $impacto['counts'],
+                'deleted_rows' => [
+                    'visitas_tecnicas' => $deletedVisitas,
+                    'pagos' => $deletedPagos,
+                    'equipos' => $deletedEquipos,
+                    'instalaciones' => $deletedInstalaciones,
+                    'clientes' => 1,
+                ],
+            ];
+        } catch (Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    private function lockClienteById(int $id): ?array {
+        $stmt = $this->conn->prepare('SELECT id, nombre FROM clientes WHERE id = :id FOR UPDATE');
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    private function countByClienteId(string $table, int $clienteId): int {
+        $allowed = ['pagos', 'equipos', 'instalaciones'];
+        if (!in_array($table, $allowed, true)) {
+            throw new InvalidArgumentException('Tabla no permitida para conteo');
+        }
+
+        $sql = "SELECT COUNT(*) AS total FROM {$table} WHERE cliente_id = :cliente_id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':cliente_id', $clienteId, PDO::PARAM_INT);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int)($row['total'] ?? 0);
+    }
+
+    private function countVisitasByCliente(int $clienteId): int {
+        $sql = "SELECT COUNT(*) AS total
+                FROM visitas_tecnicas v
+                LEFT JOIN equipos e ON e.id = v.equipo_id
+                WHERE v.cliente_id = :cliente_id
+                   OR e.cliente_id = :cliente_id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':cliente_id', $clienteId, PDO::PARAM_INT);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int)($row['total'] ?? 0);
+    }
+
+    private function deleteByClienteId(string $table, int $clienteId): int {
+        $allowed = ['pagos', 'equipos', 'instalaciones'];
+        if (!in_array($table, $allowed, true)) {
+            throw new InvalidArgumentException('Tabla no permitida para eliminación');
+        }
+
+        $sql = "DELETE FROM {$table} WHERE cliente_id = :cliente_id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':cliente_id', $clienteId, PDO::PARAM_INT);
+        $stmt->execute();
+        return (int)$stmt->rowCount();
+    }
+
+    private function deleteVisitasByCliente(int $clienteId): int {
+        $sql = "DELETE v
+                FROM visitas_tecnicas v
+                LEFT JOIN equipos e ON e.id = v.equipo_id
+                WHERE v.cliente_id = :cliente_id
+                   OR e.cliente_id = :cliente_id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':cliente_id', $clienteId, PDO::PARAM_INT);
+        $stmt->execute();
+        return (int)$stmt->rowCount();
+    }
+
+    private function getForeignKeyAudit(): array {
+        $sql = "SELECT
+                    kcu.TABLE_NAME,
+                    kcu.COLUMN_NAME,
+                    kcu.CONSTRAINT_NAME,
+                    kcu.REFERENCED_TABLE_NAME,
+                    kcu.REFERENCED_COLUMN_NAME,
+                    COALESCE(rc.UPDATE_RULE, '') AS UPDATE_RULE,
+                    COALESCE(rc.DELETE_RULE, '') AS DELETE_RULE
+                FROM information_schema.KEY_COLUMN_USAGE kcu
+                LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+                  ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+                 AND rc.TABLE_NAME = kcu.TABLE_NAME
+                 AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
+                  AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+                  AND (
+                    kcu.REFERENCED_TABLE_NAME = 'clientes'
+                    OR kcu.TABLE_NAME IN ('equipos', 'visitas_tecnicas', 'instalaciones', 'pagos')
+                  )
+                ORDER BY kcu.TABLE_NAME, kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
     
     public function getStats() {

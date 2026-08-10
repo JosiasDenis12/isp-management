@@ -259,10 +259,34 @@ class Equipo {
     }
     
     public function delete() {
-        $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':id', $this->id);
-        return $stmt->execute();
+        $equipoId = (int)$this->id;
+        if ($equipoId <= 0) {
+            throw new InvalidArgumentException('ID de equipo inválido');
+        }
+
+        $this->conn->beginTransaction();
+        try {
+            // visitas_tecnicas tiene una FK compuesta hacia equipos. Se eliminan
+            // únicamente las visitas del equipo seleccionado antes del equipo.
+            $visitas = $this->conn->prepare('DELETE FROM visitas_tecnicas WHERE equipo_id = :id');
+            $visitas->bindValue(':id', $equipoId, PDO::PARAM_INT);
+            $visitas->execute();
+
+            $stmt = $this->conn->prepare('DELETE FROM equipos WHERE id = :id');
+            $stmt->bindValue(':id', $equipoId, PDO::PARAM_INT);
+            $stmt->execute();
+            if ($stmt->rowCount() !== 1) {
+                throw new RuntimeException('Equipo no encontrado');
+            }
+
+            $this->conn->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
     }
 }
 ?>
