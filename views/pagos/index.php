@@ -599,7 +599,7 @@
                                         <a href="<?php echo url('pagos/' . $pagoId); ?>" class="btn btn-outline-primary action-btn" title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <button type="button" class="btn btn-outline-warning action-btn js-pago-edit" title="Editar pago" data-bs-toggle="tooltip" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>">
+                                        <button type="button" class="btn btn-outline-warning action-btn js-pago-edit" title="Editar pago" data-bs-toggle="tooltip" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-monto-recibido="<?php echo htmlspecialchars((string)($pago['monto_recibido'] ?? '')); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>">
                                             <i class="fas fa-pen"></i>
                                         </button>
                                         <button type="button" class="btn btn-outline-danger action-btn js-pago-delete" title="Eliminar pago" data-bs-toggle="tooltip" data-pago-id="<?php echo $pagoId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>">
@@ -617,7 +617,7 @@
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                                 <li><a class="dropdown-item" href="<?php echo url('pagos/' . $pagoId); ?>"><i class="fas fa-eye me-2"></i>Ver detalles</a></li>
-                                                <li><button type="button" class="dropdown-item js-pago-edit" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>"><i class="fas fa-pen me-2"></i>Editar</button></li>
+                                                <li><button type="button" class="dropdown-item js-pago-edit" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-monto-recibido="<?php echo htmlspecialchars((string)($pago['monto_recibido'] ?? '')); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>"><i class="fas fa-pen me-2"></i>Editar</button></li>
                                                 <li><button type="button" class="dropdown-item text-danger js-pago-delete" data-pago-id="<?php echo $pagoId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>"><i class="fas fa-trash me-2"></i>Eliminar</button></li>
                                                 <li><a class="dropdown-item" href="<?php echo url('pagos/' . $pagoId . '/print'); ?>" target="_blank"><i class="fas fa-print me-2"></i>Imprimir factura</a></li>
                                                 <li><a class="dropdown-item" href="<?php echo url('pagos/' . $pagoId . '/print') . '?type=ticket'; ?>" target="_blank"><i class="fas fa-receipt me-2"></i>Imprimir ticket</a></li>
@@ -706,7 +706,7 @@
 
                         <div class="d-flex gap-2 pt-2 border-top">
                             <a href="<?php echo url('pagos/' . $pagoId); ?>" class="btn btn-outline-primary btn-sm" style="border-radius:8px;font-size:.78rem;"><i class="fas fa-eye me-1"></i>Ver</a>
-                            <button type="button" class="btn btn-outline-warning btn-sm js-pago-edit" style="border-radius:8px;font-size:.78rem;" data-bs-toggle="tooltip" title="Editar pago" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>"><i class="fas fa-pen me-1"></i>Editar</button>
+                            <button type="button" class="btn btn-outline-warning btn-sm js-pago-edit" style="border-radius:8px;font-size:.78rem;" data-bs-toggle="tooltip" title="Editar pago" data-pago-id="<?php echo $pagoId; ?>" data-cliente-id="<?php echo $clienteId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>" data-monto-recibido="<?php echo htmlspecialchars((string)($pago['monto_recibido'] ?? '')); ?>" data-fecha-pago="<?php echo htmlspecialchars((string)($pago['fecha_pago'] ?? '')); ?>" data-fecha-vencimiento="<?php echo htmlspecialchars((string)($pago['fecha_vencimiento'] ?? '')); ?>" data-metodo="<?php echo htmlspecialchars($metodo); ?>" data-estado="<?php echo htmlspecialchars($estado); ?>" data-observaciones="<?php echo htmlspecialchars((string)($pago['observaciones'] ?? '')); ?>"><i class="fas fa-pen me-1"></i>Editar</button>
                             <button type="button" class="btn btn-outline-danger btn-sm js-pago-delete" style="border-radius:8px;font-size:.78rem;" data-bs-toggle="tooltip" title="Eliminar pago" data-pago-id="<?php echo $pagoId; ?>" data-cliente-nombre="<?php echo htmlspecialchars($nombreCliente); ?>" data-factura="<?php echo htmlspecialchars($factura); ?>" data-monto="<?php echo htmlspecialchars((string)$monto); ?>"><i class="fas fa-trash me-1"></i>Eliminar</button>
                             <a href="<?php echo url('pagos/' . $pagoId . '/print'); ?>" class="btn btn-outline-success btn-sm" style="border-radius:8px;font-size:.78rem;" target="_blank"><i class="fas fa-print me-1"></i>Factura</a>
                             <a href="<?php echo url('pagos/' . $pagoId . '/print') . '?type=ticket'; ?>" class="btn btn-outline-secondary btn-sm" style="border-radius:8px;font-size:.78rem;" target="_blank"><i class="fas fa-receipt me-1"></i>Ticket</a>
@@ -801,6 +801,21 @@
                                 <option value="paypal">PayPal</option>
                                 <option value="tarjeta">Tarjeta</option>
                             </select>
+                        </div>
+                        <div class="col-12 d-none" id="pagoEditEfectivoRow">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="pagoEditMontoRecibido" class="form-label">Pago con *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" id="pagoEditMontoRecibido" name="monto_recibido" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Cambio</label>
+                                    <div class="form-control bg-light" id="pagoEditCambio">$0.00</div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label for="pagoEditFechaPago" class="form-label">Fecha de pago *</label>
@@ -1120,6 +1135,9 @@
         const editNumeroFactura = document.getElementById('pagoEditNumeroFactura');
         const editMonto = document.getElementById('pagoEditMonto');
         const editMetodo = document.getElementById('pagoEditMetodo');
+        const editEfectivoRow = document.getElementById('pagoEditEfectivoRow');
+        const editMontoRecibido = document.getElementById('pagoEditMontoRecibido');
+        const editCambio = document.getElementById('pagoEditCambio');
         const editFechaPago = document.getElementById('pagoEditFechaPago');
         const editFechaVencimiento = document.getElementById('pagoEditFechaVencimiento');
         const editEstado = document.getElementById('pagoEditEstado');
@@ -1277,6 +1295,7 @@
         const cliente = dataset.clienteNombre || '';
         const factura = dataset.factura || '';
         const monto = dataset.monto || '';
+        const montoRecibido = dataset.montoRecibido || '';
         const fechaPago = dataset.fechaPago || '';
         const fechaVencimiento = dataset.fechaVencimiento || '';
         const metodo = dataset.metodo || '';
@@ -1289,6 +1308,7 @@
         editNumeroFactura.value = factura;
         editMonto.value = monto;
         editMetodo.value = metodo;
+        editMontoRecibido.value = montoRecibido;
         editFechaPago.value = fechaPago;
         editFechaVencimiento.value = fechaVencimiento;
         editEstado.value = estado;
@@ -1297,6 +1317,8 @@
         if (editSummaryFactura) editSummaryFactura.textContent = factura || '—';
         if (editSummaryCliente) editSummaryCliente.textContent = cliente || '—';
         if (editSummaryMonto) editSummaryMonto.textContent = currency(monto || 0);
+
+        syncEditEfectivoFields();
 
         hideFeedback(editFeedback);
         if (editModal) editModal.show();
@@ -1326,6 +1348,20 @@
         if (!client) {
             return;
         }
+    }
+
+    function syncEditEfectivoFields() {
+        const esEfectivo = editMetodo.value === 'efectivo';
+        editEfectivoRow.classList.toggle('d-none', !esEfectivo);
+        editMontoRecibido.required = esEfectivo;
+        editMontoRecibido.min = editMonto.value || '0';
+        if (!esEfectivo) {
+            editMontoRecibido.value = '';
+            editCambio.textContent = '$0.00';
+            return;
+        }
+        const cambio = Math.max(0, Number(editMontoRecibido.value || 0) - Number(editMonto.value || 0));
+        editCambio.textContent = currency(cambio);
     }
 
         async function submitEditForm(event) {
@@ -1413,6 +1449,9 @@
         if (editClient) {
             editClient.addEventListener('change', syncEditClientHint);
         }
+        editMetodo.addEventListener('change', syncEditEfectivoFields);
+        editMonto.addEventListener('input', syncEditEfectivoFields);
+        editMontoRecibido.addEventListener('input', syncEditEfectivoFields);
 
         initTooltips();
     }

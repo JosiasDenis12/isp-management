@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS `pagos` (
   `fecha_pago` date NOT NULL,
   `fecha_vencimiento` date NOT NULL,
   `metodo_pago` enum('transferencia','efectivo','paypal','tarjeta') DEFAULT NULL,
+  `monto_recibido` decimal(10,2) DEFAULT NULL,
   `estado` enum('pagado','pendiente','vencido') DEFAULT 'pendiente',
   `numero_factura` varchar(100) DEFAULT NULL,
   `observaciones` text,
@@ -170,8 +171,8 @@ CREATE TABLE IF NOT EXISTS `pagos` (
 -- Volcado de datos para la tabla `pagos`
 --
 
-INSERT INTO `pagos` (`id`, `cliente_id`, `monto`, `fecha_pago`, `fecha_vencimiento`, `metodo_pago`, `estado`, `numero_factura`, `observaciones`, `created_at`) VALUES
-(1, 1, 500.00, '2025-11-21', '2025-12-21', 'efectivo', 'pendiente', 'FAC-001', '', '2025-11-22 04:46:50');
+INSERT INTO `pagos` (`id`, `cliente_id`, `monto`, `fecha_pago`, `fecha_vencimiento`, `metodo_pago`, `monto_recibido`, `estado`, `numero_factura`, `observaciones`, `created_at`) VALUES
+(1, 1, 500.00, '2025-11-21', '2025-12-21', 'efectivo', NULL, 'pendiente', 'FAC-001', '', '2025-11-22 04:46:50');
 
 -- --------------------------------------------------------
 

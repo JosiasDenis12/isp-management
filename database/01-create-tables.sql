@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS pagos (
     fecha_pago DATE NOT NULL,
     fecha_vencimiento DATE NOT NULL,
     metodo_pago ENUM('transferencia', 'efectivo', 'paypal', 'tarjeta'),
+    monto_recibido DECIMAL(10,2) NULL,
     estado ENUM('pagado', 'pendiente', 'vencido') DEFAULT 'pendiente',
     numero_factura VARCHAR(100),
     observaciones TEXT,

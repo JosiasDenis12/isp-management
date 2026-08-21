@@ -35,21 +35,39 @@ class PagoController {
 
     public function create() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $pagoModel = new Pago();
-            
-            $pagoModel->cliente_id = $_POST['cliente_id'];
-            $pagoModel->monto = $_POST['monto'];
-            $pagoModel->fecha_pago = $_POST['fecha_pago'];
-            $pagoModel->fecha_vencimiento = null; // Se deriva en el modelo.
-            $pagoModel->metodo_pago = $_POST['metodo_pago'];
-            $pagoModel->estado = $_POST['estado'];
-            $pagoModel->numero_factura = $pagoModel->generateFacturaNumber();
-            $pagoModel->observaciones = $_POST['observaciones'] ?? '';
-            
-            if ($pagoModel->create()) {
-                header('Location: ' . url('pagos?success=Pago registrado exitosamente'));
-                exit;
-            } else {
+            $monto = trim((string)($_POST['monto'] ?? ''));
+            $metodoPago = trim((string)($_POST['metodo_pago'] ?? ''));
+            $montoRecibido = null;
+
+            if ($monto === '' || !is_numeric($monto) || (float)$monto <= 0) {
+                $error = 'El monto debe ser mayor a cero';
+            } elseif (!in_array($metodoPago, ['transferencia', 'efectivo', 'paypal', 'tarjeta'], true)) {
+                $error = 'El metodo de pago no es valido';
+            } elseif ($metodoPago === 'efectivo') {
+                $recibido = trim((string)($_POST['monto_recibido'] ?? ''));
+                if ($recibido === '' || !is_numeric($recibido) || (float)$recibido < (float)$monto) {
+                    $error = 'El monto recibido en efectivo debe ser igual o mayor al total';
+                } else {
+                    $montoRecibido = number_format((float)$recibido, 2, '.', '');
+                }
+            }
+
+            if (!isset($error)) {
+                $pagoModel = new Pago();
+                $pagoModel->cliente_id = $_POST['cliente_id'];
+                $pagoModel->monto = $monto;
+                $pagoModel->fecha_pago = $_POST['fecha_pago'];
+                $pagoModel->fecha_vencimiento = null; // Se deriva en el modelo.
+                $pagoModel->metodo_pago = $metodoPago;
+                $pagoModel->monto_recibido = $montoRecibido;
+                $pagoModel->estado = $_POST['estado'];
+                $pagoModel->numero_factura = $pagoModel->generateFacturaNumber();
+                $pagoModel->observaciones = $_POST['observaciones'] ?? '';
+
+                if ($pagoModel->create()) {
+                    header('Location: ' . url('pagos?success=Pago registrado exitosamente'));
+                    exit;
+                }
                 $error = 'Error al registrar el pago';
             }
         }
@@ -93,6 +111,7 @@ class PagoController {
         $monto = trim((string)($_POST['monto'] ?? ''));
         $fechaPago = trim((string)($_POST['fecha_pago'] ?? ''));
         $metodoPago = trim((string)($_POST['metodo_pago'] ?? ''));
+        $montoRecibido = trim((string)($_POST['monto_recibido'] ?? ''));
         $estado = trim((string)($_POST['estado'] ?? ''));
         $numeroFactura = trim((string)($_POST['numero_factura'] ?? ($pagoActual['numero_factura'] ?? '')));
         $observaciones = trim((string)($_POST['observaciones'] ?? ''));
@@ -103,6 +122,10 @@ class PagoController {
         if ($fechaPago === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaPago) || strtotime($fechaPago) === false) $errores[] = 'La fecha de pago no es válida';
         if (!in_array($metodoPago, ['transferencia', 'efectivo', 'paypal', 'tarjeta'], true)) $errores[] = 'El método de pago no es válido';
         if (!in_array($estado, ['pagado', 'pendiente', 'vencido'], true)) $errores[] = 'El estado no es válido';
+
+        if ($metodoPago === 'efectivo' && ($montoRecibido === '' || !is_numeric($montoRecibido) || (float)$montoRecibido < (float)$monto)) {
+            $errores[] = 'El monto recibido en efectivo debe ser igual o mayor al total';
+        }
 
         if ($errores) {
             $this->sendJson(['success' => false, 'message' => implode('. ', $errores)], 422);
@@ -115,6 +138,7 @@ class PagoController {
             $pagoModel->monto = $monto;
             $pagoModel->fecha_pago = $fechaPago;
             $pagoModel->metodo_pago = $metodoPago;
+            $pagoModel->monto_recibido = $metodoPago === 'efectivo' ? number_format((float)$montoRecibido, 2, '.', '') : null;
             $pagoModel->estado = $estado;
             $pagoModel->numero_factura = $numeroFactura !== '' ? $numeroFactura : ($pagoActual['numero_factura'] ?? '');
             $pagoModel->observaciones = $observaciones;

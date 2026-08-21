@@ -12,6 +12,7 @@ class Pago {
     public $fecha_pago;
     public $fecha_vencimiento;
     public $metodo_pago;
+    public $monto_recibido;
     public $estado;
     public $numero_factura;
     public $observaciones;
@@ -210,8 +211,8 @@ class Pago {
         $ciclo = SubscriptionStatus::calcular($this->fecha_pago, null, (int)($cliente['dia_corte'] ?? 0));
         $this->fecha_vencimiento = $ciclo['fecha_corte'];
         $query = "INSERT INTO " . $this->table_name . " 
-                  (cliente_id, monto, fecha_pago, fecha_vencimiento, metodo_pago, estado, numero_factura, observaciones) 
-                  VALUES (:cliente_id, :monto, :fecha_pago, :fecha_vencimiento, :metodo_pago, :estado, :numero_factura, :observaciones)";
+                  (cliente_id, monto, fecha_pago, fecha_vencimiento, metodo_pago, monto_recibido, estado, numero_factura, observaciones)
+                  VALUES (:cliente_id, :monto, :fecha_pago, :fecha_vencimiento, :metodo_pago, :monto_recibido, :estado, :numero_factura, :observaciones)";
         
         $stmt = $this->conn->prepare($query);
         
@@ -220,6 +221,7 @@ class Pago {
         $stmt->bindParam(':fecha_pago', $this->fecha_pago);
         $stmt->bindParam(':fecha_vencimiento', $this->fecha_vencimiento);
         $stmt->bindParam(':metodo_pago', $this->metodo_pago);
+        $stmt->bindValue(':monto_recibido', $this->monto_recibido);
         $stmt->bindParam(':estado', $this->estado);
         $stmt->bindParam(':numero_factura', $this->numero_factura);
         $stmt->bindParam(':observaciones', $this->observaciones);
@@ -245,8 +247,9 @@ class Pago {
                   SET cliente_id = :cliente_id,
                       monto = :monto,
                       fecha_pago = :fecha_pago,
-                      fecha_vencimiento = :fecha_vencimiento,
-                      metodo_pago = :metodo_pago,
+                       fecha_vencimiento = :fecha_vencimiento,
+                       metodo_pago = :metodo_pago,
+                       monto_recibido = :monto_recibido,
                       estado = :estado,
                       numero_factura = :numero_factura,
                       observaciones = :observaciones
@@ -259,6 +262,7 @@ class Pago {
         $stmt->bindValue(':fecha_pago', $this->fecha_pago);
         $stmt->bindValue(':fecha_vencimiento', $this->fecha_vencimiento);
         $stmt->bindValue(':metodo_pago', $this->metodo_pago);
+        $stmt->bindValue(':monto_recibido', $this->monto_recibido);
         $stmt->bindValue(':estado', $this->estado);
         $stmt->bindValue(':numero_factura', $this->numero_factura);
         $stmt->bindValue(':observaciones', $this->observaciones);

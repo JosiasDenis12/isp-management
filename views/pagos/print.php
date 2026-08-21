@@ -1,6 +1,11 @@
 <?php
 // Soporta impresión de factura completa o ticket compacto.
 $type = isset($_GET['type']) ? $_GET['type'] : 'invoice';
+$esPagoEfectivo = strtolower(trim((string)($pago['metodo_pago'] ?? ''))) === 'efectivo';
+$montoRecibido = isset($pago['monto_recibido']) && is_numeric($pago['monto_recibido'])
+    ? (float)$pago['monto_recibido']
+    : null;
+$mostrarDesgloseEfectivo = $esPagoEfectivo && $montoRecibido !== null && $montoRecibido >= (float)$pago['monto'];
 
 // Logo de Sky Network en SVG (nube + wifi), coincide con la identidad de marca.
 // Se arma con dos sub-SVG anidados (arcos wifi + nube) para garantizar que
@@ -30,66 +35,54 @@ if ($type === 'ticket') {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Ticket <?php echo htmlspecialchars($pago['numero_factura']); ?></title>
         <style>
-            :root{
-                --ink:#0B1F3A;
-                --gold:#B8912F;
-                --line:#d8d8d8;
-                --muted:#6b7280;
-            }
+            :root { --ink: #000; --line: #000; }
+            @page { size: 58mm auto; margin: 0; }
             * { box-sizing: border-box; }
+            html { width: 58mm; background: #fff; }
             body {
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
-                color: var(--ink);
+                width: 58mm;
                 margin: 0;
-                padding: 20px;
+                padding: 5mm;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 10pt;
+                font-weight: 500;
+                line-height: 1.28;
+                color: #000;
                 background: #f4f4f4;
             }
-            .ticket {
-                width: 300px;
-                max-width: 300px;
-                margin: 0 auto;
-                padding: 18px 16px;
-                background: #fff;
-                border: 1px solid var(--line);
-                box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-            }
+            .ticket { width: 48mm; max-width: 100%; min-width: 0; margin: 0 auto; padding: 0; background: #fff; }
             .center { text-align: center; }
-            .bold { font-weight: 700; }
-            .small { font-size: 10.5px; color: var(--muted); }
-            .divider {
-                border: none;
-                border-top: 1px dashed #bbb;
-                margin: 10px 0;
-            }
-            .brand-name {
-                font-family: 'Georgia', 'Times New Roman', serif;
-                font-weight: 700;
-                letter-spacing: 3px;
-                font-size: 17px;
-                color: var(--ink);
-            }
-            .brand-tagline {
-                font-family: 'Georgia', 'Times New Roman', serif;
-                font-style: italic;
-                font-size: 11px;
-                color: var(--gold);
-                margin-top: 2px;
-            }
-            .doc-title {
-                letter-spacing: 2px;
-                font-size: 11px;
-                color: var(--muted);
-                margin: 2px 0;
-            }
-            .row { display: flex; justify-content: space-between; margin: 3px 0; }
-            .amount { font-size: 18px; font-weight: 700; color: var(--ink); }
+            .divider { border: none; border-top: .25mm dashed var(--line); margin: 3mm 0; }
+            .brand-mark { margin: 0 0 1.2mm; line-height: 0; }
+            .brand-name { font-family: Georgia, 'Times New Roman', serif; font-weight: 900; letter-spacing: .7mm; font-size: 15pt; line-height: 1.08; color: #000; }
+            .brand-tagline { font-size: 9pt; font-weight: 700; letter-spacing: .2mm; margin-top: 1.2mm; }
+            .doc-title { display: inline-block; max-width: 100%; border: .35mm solid #000; padding: 1mm 1.2mm; font-size: 7.2pt; line-height: 1; font-weight: 900; letter-spacing: .12mm; white-space: nowrap; }
+            .meta-row { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 58%); gap: 0; margin: 1.4mm 0; align-items: baseline; }
+            .meta-label { font-size: 8.5pt; font-weight: 800; }
+            .meta-value { min-width: 0; text-align: right; font-size: 9pt; font-weight: 700; overflow-wrap: anywhere; }
+            .customer { margin-top: 2.5mm; }
+            .customer-label, .section-label { display: block; font-size: 8pt; font-weight: 900; letter-spacing: .2mm; text-transform: uppercase; }
+            .customer-name { display: block; margin-top: .7mm; font-size: 12pt; font-weight: 900; line-height: 1.12; overflow-wrap: anywhere; }
+            .item-title { font-size: 10pt; font-weight: 900; }
+            .item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2mm; align-items: end; }
+            .item-price { font-size: 10pt; font-weight: 900; text-align: right; overflow-wrap: anywhere; }
+            .total-box { border-top: .6mm solid #000; border-bottom: .6mm solid #000; padding: 2mm 0; }
+            .total-row { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 58%); align-items: baseline; gap: 0; }
+            .total-label { font-size: 10pt; font-weight: 900; letter-spacing: .3mm; }
+            .amount { min-width: 0; max-width: 100%; font-size: 16pt; line-height: 1; font-weight: 900; text-align: right; overflow-wrap: anywhere; }
+            .cash-breakdown { padding: 2mm 0 0; }
+            .cash-row { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 58%); align-items: baseline; margin-top: 1.2mm; }
+            .cash-label { font-size: 8.5pt; font-weight: 800; letter-spacing: .1mm; }
+            .cash-value { min-width: 0; font-size: 10pt; font-weight: 800; text-align: right; overflow-wrap: anywhere; }
+            .note { margin: 0; font-size: 8.5pt; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
+            .thank-you { font-size: 9pt; font-weight: 800; letter-spacing: .1mm; }
+            .small { font-size: 8.5pt; font-weight: 600; color: #000; overflow-wrap: anywhere; }
             .print-actions { text-align: center; margin-bottom: 14px; }
             .no-print { display: block; }
             .btn {
                 display: inline-block;
                 padding: 8px 16px;
-                background: var(--ink);
+                background: #000;
                 color: #fff;
                 text-decoration: none;
                 border: none;
@@ -99,7 +92,13 @@ if ($type === 'ticket') {
                 font-size: 12px;
                 letter-spacing: .5px;
             }
-            @media print { .no-print { display: none; } body{ background:#fff; padding:0; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; } .ticket{ border:none; box-shadow:none; } }
+            @media print {
+                html, body { width: 58mm; min-width: 58mm; max-width: 58mm; background: #fff; }
+                body { padding: 5mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+                .no-print { display: none !important; }
+                .ticket { width: 48mm; max-width: 48mm; margin: 0; }
+            }
         </style>
     </head>
     <body>
@@ -107,24 +106,32 @@ if ($type === 'ticket') {
             <button onclick="window.print()" class="btn">🖨️ Imprimir Ticket</button>
         </div>
         <div class="ticket">
-            <div class="center"><?php echo skyNetworkLogoSVG('#0B1F3A', 46); ?></div>
+            <div class="center brand-mark"><?php echo skyNetworkLogoSVG('#000000', 54); ?></div>
             <div class="center brand-name">SKY NETWORK</div>
             <div class="center brand-tagline">La Red del Cielo</div>
             <div class="divider"></div>
             <div class="center doc-title">TICKET&nbsp;/&nbsp;NOTA&nbsp;DE&nbsp;COMPRA</div>
             <div class="divider"></div>
-            <div class="row"><span class="bold">Factura</span><span><?php echo htmlspecialchars($pago['numero_factura']); ?></span></div>
-            <div class="row"><span class="bold">Cliente</span><span><?php echo htmlspecialchars($pago['cliente_nombre']); ?></span></div>
-            <div class="row small"><span>Fecha</span><span><?php echo date('d/m/Y H:i', strtotime($pago['created_at'])); ?></span></div>
+            <div class="meta-row"><span class="meta-label">Factura</span><span class="meta-value"><?php echo htmlspecialchars($pago['numero_factura']); ?></span></div>
+            <div class="meta-row"><span class="meta-label">Fecha</span><span class="meta-value"><?php echo date('d/m/Y H:i', strtotime($pago['created_at'])); ?></span></div>
+            <div class="customer"><span class="customer-label">Cliente</span><span class="customer-name"><?php echo htmlspecialchars($pago['cliente_nombre']); ?></span></div>
             <div class="divider"></div>
-            <div class="row"><span>Servicio de Internet</span><span>$<?php echo number_format($pago['monto'], 2); ?></span></div>
+            <div class="section-label">Concepto</div>
+            <div class="item-row"><span class="item-title">Servicio de Internet</span><span class="item-price">$<?php echo number_format($pago['monto'], 2); ?></span></div>
             <div class="divider"></div>
-            <div class="row"><span class="bold">TOTAL</span><span class="amount">$<?php echo number_format($pago['monto'], 2); ?></span></div>
+            <div class="total-box"><div class="total-row"><span class="total-label">TOTAL PAGADO</span><span class="amount">$<?php echo number_format($pago['monto'], 2); ?></span></div></div>
+            <?php if ($mostrarDesgloseEfectivo): ?>
+                <div class="cash-breakdown">
+                    <div class="cash-row"><span class="cash-label">PAGO CON</span><span class="cash-value">$<?php echo number_format($montoRecibido, 2); ?></span></div>
+                    <div class="cash-row"><span class="cash-label">CAMBIO</span><span class="cash-value">$<?php echo number_format($montoRecibido - (float)$pago['monto'], 2); ?></span></div>
+                </div>
+            <?php endif; ?>
             <div class="divider"></div>
             <div class="small">Método de pago: <?php echo ucfirst($pago['metodo_pago']); ?></div>
             <?php if (!empty($pago['observaciones'])): ?>
                 <div class="divider"></div>
-                <div class="small">Obs: <?php echo nl2br(htmlspecialchars($pago['observaciones'])); ?></div>
+                <span class="section-label">Observaciones</span>
+                <p class="note"><?php echo htmlspecialchars($pago['observaciones']); ?></p>
             <?php endif; ?>
             <div class="divider"></div>
             <div class="center small" style="letter-spacing:.5px;">¡Gracias por su preferencia!</div>
