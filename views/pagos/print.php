@@ -26,7 +26,12 @@ function skyNetworkLogoSVG($color = '#0B1F3A', $size = 60) {
 }
 
 if ($type === 'ticket') {
-    // Layout compacto para ticket/nota de compra
+    // Layout compacto para ticket/nota de compra.
+    // IMPORTANTE: el bloque .ticket y sus estilos (incluido @media print) se
+    // mantienen EXACTAMENTE igual al original -> el formato/dimensiones de
+    // impresión térmica (58mm) no cambian. Solo se rediseña el "shell" de
+    // vista previa en pantalla (encabezado, barra de acciones, fondo, modal).
+    $backUrl = function_exists('url') ? url('pagos/' . $pago['id']) : '#';
     ?>
     <!DOCTYPE html>
     <html lang="es">
@@ -35,13 +40,16 @@ if ($type === 'ticket') {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Ticket <?php echo htmlspecialchars($pago['numero_factura']); ?></title>
         <style>
+            /* ============================================================
+               1) ESTILOS DEL TICKET (NO SE MODIFICAN) — verdad de impresión
+               ============================================================ */
             :root { --ink: #000; --line: #000; }
-            @page { size: 58mm auto; margin: 0; }
+            @page { size: 58mm auto; margin: 0 !important; }
             * { box-sizing: border-box; }
-            html { width: 58mm; background: #fff; }
+            html { width: 58mm; margin: 0; padding: 0; background: #fff; }
             body {
                 width: 58mm;
-                margin: 0;
+                margin: 0 auto;
                 padding: 5mm;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 10pt;
@@ -77,67 +85,331 @@ if ($type === 'ticket') {
             .note { margin: 0; font-size: 8.5pt; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
             .thank-you { font-size: 9pt; font-weight: 800; letter-spacing: .1mm; }
             .small { font-size: 8.5pt; font-weight: 600; color: #000; overflow-wrap: anywhere; }
-            .print-actions { text-align: center; margin-bottom: 14px; }
-            .no-print { display: block; }
-            .btn {
-                display: inline-block;
-                padding: 8px 16px;
-                background: #000;
-                color: #fff;
-                text-decoration: none;
-                border: none;
-                border-radius: 3px;
-                cursor: pointer;
-                font-family: Arial, sans-serif;
-                font-size: 12px;
-                letter-spacing: .5px;
-            }
+
             @media print {
+                html { margin: 0 !important; padding: 0 !important; }
                 html, body { width: 58mm; min-width: 58mm; max-width: 58mm; background: #fff; }
-                body { padding: 5mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+                body { margin: 0 auto !important; padding: 5mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
                 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
                 .no-print { display: none !important; }
-                .ticket { width: 48mm; max-width: 48mm; margin: 0; }
+                .ticket { width: 48mm; max-width: 48mm; margin: 0 auto !important; box-shadow: none !important; border: none !important; }
+                .ticket-stage { margin: 0 auto !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; border: none !important; }
+            }
+
+            /* ============================================================
+               2) SHELL DE VISTA PREVIA (solo pantalla, no imprime)
+               ============================================================ */
+            @media screen {
+                body {
+                    width: 100%;
+                    padding: 0;
+                    background: #f4f5f7;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Arial, sans-serif;
+                }
+                .page-shell { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+
+                .page-header {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    gap: 20px;
+                    flex-wrap: wrap;
+                    margin-bottom: 28px;
+                }
+                .header-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+                .btn-back {
+                    display: inline-flex; align-items: center; gap: 6px;
+                    background: #fff; color: #3730a3; text-decoration: none;
+                    font-size: 13px; font-weight: 700;
+                    padding: 9px 16px; border-radius: 999px;
+                    border: 1px solid #e5e7eb;
+                    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+                    transition: background .15s ease, box-shadow .15s ease;
+                }
+                .btn-back:hover { background: #f5f6ff; box-shadow: 0 2px 6px rgba(16,24,40,.08); }
+                .btn-back svg { width: 15px; height: 15px; }
+
+                .header-titles h1 { margin: 0; font-size: 21px; font-weight: 800; color: #0f172a; letter-spacing: -.2px; }
+                .header-titles p { margin: 3px 0 0; font-size: 12.5px; color: #6b7280; }
+
+                .btn-print-main {
+                    display: inline-flex; align-items: center; gap: 8px;
+                    background: #0B1F3A; color: #fff; border: none;
+                    padding: 11px 20px; border-radius: 9px;
+                    font-size: 13px; font-weight: 700; letter-spacing: .2px;
+                    cursor: pointer; box-shadow: 0 4px 12px rgba(11,31,58,.18);
+                    transition: background .15s ease, transform .1s ease;
+                }
+                .btn-print-main:hover { background: #16294a; }
+                .btn-print-main:active { transform: translateY(1px); }
+                .btn-print-main svg { width: 16px; height: 16px; }
+
+                .page-body { display: flex; align-items: flex-start; gap: 32px; }
+
+                .action-rail { display: flex; flex-direction: column; gap: 14px; width: 96px; flex-shrink: 0; }
+                .rail-btn {
+                    display: flex; flex-direction: column; align-items: center; gap: 8px;
+                    background: #fff; border: 1px solid #e9eaef; border-radius: 14px;
+                    padding: 14px 6px 12px; cursor: pointer;
+                    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+                    transition: box-shadow .15s ease, border-color .15s ease, transform .1s ease;
+                    font-family: inherit;
+                }
+                .rail-btn:hover { border-color: #c7d2fe; box-shadow: 0 4px 14px rgba(79,70,229,.12); }
+                .rail-btn:active { transform: translateY(1px); }
+                .rail-icon {
+                    width: 42px; height: 42px; border-radius: 11px;
+                    background: #EEF0FF; color: #4F46E5;
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .rail-icon svg { width: 19px; height: 19px; }
+                .rail-label { font-size: 11px; font-weight: 700; color: #374151; text-align: center; line-height: 1.25; }
+
+                .preview-area { flex: 1; display: flex; justify-content: center; padding-top: 4px; }
+                .ticket-stage {
+                    background: #fff;
+                    border-radius: 14px;
+                    padding: 22px 20px 26px;
+                    box-shadow: 0 12px 36px rgba(15,23,42,.09), 0 2px 8px rgba(15,23,42,.05);
+                    border: 1px solid #eef0f3;
+                }
+
+                /* Modal enviar por email */
+                .modal-overlay {
+                    position: fixed; inset: 0; background: rgba(15,23,42,.45);
+                    display: flex; align-items: center; justify-content: center;
+                    z-index: 50; padding: 16px;
+                }
+                .modal-overlay.hidden { display: none; }
+                .modal-box {
+                    background: #fff; border-radius: 16px; width: 100%; max-width: 340px;
+                    padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.25);
+                }
+                .modal-box h3 { margin: 0 0 4px; font-size: 15px; color: #0f172a; }
+                .modal-box p.hint { margin: 0 0 14px; font-size: 12px; color: #6b7280; }
+                .modal-box input[type="email"] {
+                    width: 100%; padding: 10px 12px; border-radius: 8px;
+                    border: 1px solid #d1d5db; font-size: 13px; outline: none;
+                    box-sizing: border-box;
+                }
+                .modal-box input[type="email"]:focus { border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+                .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+                .btn-secondary, .btn-primary {
+                    border: none; border-radius: 8px; padding: 9px 16px;
+                    font-size: 12.5px; font-weight: 700; cursor: pointer;
+                }
+                .btn-secondary { background: #f3f4f6; color: #374151; }
+                .btn-secondary:hover { background: #e5e7eb; }
+                .btn-primary { background: #4F46E5; color: #fff; }
+                .btn-primary:hover { background: #4338ca; }
+
+                /* Toast */
+                .toast {
+                    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px);
+                    background: #0f172a; color: #fff; font-size: 13px; font-weight: 600;
+                    padding: 11px 18px; border-radius: 999px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+                    opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+                    z-index: 60;
+                }
+                .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+                @media (max-width: 640px) {
+                    .page-body { flex-direction: column; }
+                    .action-rail { flex-direction: row; width: 100%; overflow-x: auto; }
+                    .rail-btn { flex: 1; min-width: 78px; }
+                    .preview-area { width: 100%; }
+                }
             }
         </style>
     </head>
     <body>
-        <div class="print-actions no-print">
-            <button onclick="window.print()" class="btn">🖨️ Imprimir Ticket</button>
-        </div>
-        <div class="ticket">
-            <div class="center brand-mark"><?php echo skyNetworkLogoSVG('#000000', 54); ?></div>
-            <div class="center brand-name">SKY NETWORK</div>
-            <div class="center brand-tagline">La Red del Cielo</div>
-            <div class="divider"></div>
-            <div class="center doc-title">TICKET&nbsp;/&nbsp;NOTA&nbsp;DE&nbsp;COMPRA</div>
-            <div class="divider"></div>
-            <div class="meta-row"><span class="meta-label">Factura</span><span class="meta-value"><?php echo htmlspecialchars($pago['numero_factura']); ?></span></div>
-            <div class="meta-row"><span class="meta-label">Fecha</span><span class="meta-value"><?php echo date('d/m/Y H:i', strtotime($pago['created_at'])); ?></span></div>
-            <div class="customer"><span class="customer-label">Cliente</span><span class="customer-name"><?php echo htmlspecialchars($pago['cliente_nombre']); ?></span></div>
-            <div class="divider"></div>
-            <div class="section-label">Concepto</div>
-            <div class="item-row"><span class="item-title">Servicio de Internet</span><span class="item-price">$<?php echo number_format($pago['monto'], 2); ?></span></div>
-            <div class="divider"></div>
-            <div class="total-box"><div class="total-row"><span class="total-label">TOTAL PAGADO</span><span class="amount">$<?php echo number_format($pago['monto'], 2); ?></span></div></div>
-            <?php if ($mostrarDesgloseEfectivo): ?>
-                <div class="cash-breakdown">
-                    <div class="cash-row"><span class="cash-label">PAGO CON</span><span class="cash-value">$<?php echo number_format($montoRecibido, 2); ?></span></div>
-                    <div class="cash-row"><span class="cash-label">CAMBIO</span><span class="cash-value">$<?php echo number_format($montoRecibido - (float)$pago['monto'], 2); ?></span></div>
+        <div class="page-shell">
+            <header class="page-header no-print">
+                <div class="header-left">
+                    <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn-back">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                        Volver
+                    </a>
+                    <div class="header-titles">
+                        <h1>Ticket <?php echo htmlspecialchars($pago['numero_factura']); ?></h1>
+                        <p>Vista previa del ticket / nota de compra</p>
+                    </div>
                 </div>
-            <?php endif; ?>
-            <div class="divider"></div>
-            <div class="small">Método de pago: <?php echo ucfirst($pago['metodo_pago']); ?></div>
-            <?php if (!empty($pago['observaciones'])): ?>
-                <div class="divider"></div>
-                <span class="section-label">Observaciones</span>
-                <p class="note"><?php echo htmlspecialchars($pago['observaciones']); ?></p>
-            <?php endif; ?>
-            <div class="divider"></div>
-            <div class="center small" style="letter-spacing:.5px;">¡Gracias por su preferencia!</div>
+                <button class="btn-print-main" onclick="printTicket()" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimir Ticket
+                </button>
+            </header>
+
+            <div class="page-body">
+                <aside class="action-rail no-print">
+                    <button class="rail-btn" onclick="printTicket()" type="button">
+                        <span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></span>
+                        <span class="rail-label">Imprimir</span>
+                    </button>
+                    <button class="rail-btn" onclick="downloadPDF()" type="button">
+                        <span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                        <span class="rail-label">Descargar<br>PDF</span>
+                    </button>
+                    <button class="rail-btn" onclick="openEmailModal()" type="button">
+                        <span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
+                        <span class="rail-label">Enviar por<br>Email</span>
+                    </button>
+                    <button class="rail-btn" onclick="shareTicket()" type="button">
+                        <span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>
+                        <span class="rail-label">Compartir</span>
+                    </button>
+                </aside>
+
+                <main class="preview-area">
+                    <div class="ticket-stage" id="ticketPrintArea">
+                        <!-- ===================== TICKET (formato intacto) ===================== -->
+                        <div class="ticket">
+                            <div class="center brand-mark"><?php echo skyNetworkLogoSVG('#000000', 54); ?></div>
+                            <div class="center brand-name">SKY NETWORK</div>
+                            <div class="center brand-tagline">La Red del Cielo</div>
+                            <div class="divider"></div>
+                            <div class="center doc-title">TICKET&nbsp;/&nbsp;NOTA&nbsp;DE&nbsp;COMPRA</div>
+                            <div class="divider"></div>
+                            <div class="meta-row"><span class="meta-label">Factura</span><span class="meta-value"><?php echo htmlspecialchars($pago['numero_factura']); ?></span></div>
+                            <div class="meta-row"><span class="meta-label">Fecha</span><span class="meta-value"><?php echo date('d/m/Y H:i', strtotime($pago['created_at'])); ?></span></div>
+                            <div class="customer"><span class="customer-label">Cliente</span><span class="customer-name"><?php echo htmlspecialchars($pago['cliente_nombre']); ?></span></div>
+                            <div class="divider"></div>
+                            <div class="section-label">Concepto</div>
+                            <div class="item-row"><span class="item-title">Servicio de Internet</span><span class="item-price">$<?php echo number_format($pago['monto'], 2); ?></span></div>
+                            <div class="divider"></div>
+                            <div class="total-box"><div class="total-row"><span class="total-label">TOTAL PAGADO</span><span class="amount">$<?php echo number_format($pago['monto'], 2); ?></span></div></div>
+                            <?php if ($mostrarDesgloseEfectivo): ?>
+                                <div class="cash-breakdown">
+                                    <div class="cash-row"><span class="cash-label">PAGO CON</span><span class="cash-value">$<?php echo number_format($montoRecibido, 2); ?></span></div>
+                                    <div class="cash-row"><span class="cash-label">CAMBIO</span><span class="cash-value">$<?php echo number_format($montoRecibido - (float)$pago['monto'], 2); ?></span></div>
+                                </div>
+                            <?php endif; ?>
+                            <div class="divider"></div>
+                            <div class="small">Método de pago: <?php echo ucfirst($pago['metodo_pago']); ?></div>
+                            <?php if (!empty($pago['observaciones'])): ?>
+                                <div class="divider"></div>
+                                <span class="section-label">Observaciones</span>
+                                <p class="note"><?php echo htmlspecialchars($pago['observaciones']); ?></p>
+                            <?php endif; ?>
+                            <div class="divider"></div>
+                            <div class="center small" style="letter-spacing:.5px;">¡Gracias por su preferencia!</div>
+                        </div>
+                        <!-- =================== FIN TICKET (formato intacto) =================== -->
+                    </div>
+                </main>
+            </div>
         </div>
+
+        <!-- Modal: enviar por email -->
+        <div id="emailModal" class="modal-overlay hidden no-print">
+            <div class="modal-box">
+                <h3>Enviar ticket por email</h3>
+                <p class="hint">Se enviará el ticket <?php echo htmlspecialchars($pago['numero_factura']); ?> a la dirección indicada.</p>
+                <input type="email" id="emailInput" placeholder="cliente@correo.com" autocomplete="off">
+                <div class="modal-actions">
+                    <button class="btn-secondary" type="button" onclick="closeEmailModal()">Cancelar</button>
+                    <button class="btn-primary" type="button" onclick="confirmSendEmail()">Enviar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="toast no-print"></div>
+
+        <!-- html2pdf.js: convierte el nodo del ticket a PDF conservando su ancho real -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <script>
-            // window.onload = function() { window.print(); }
+            const NUMERO_FACTURA = <?php echo json_encode($pago['numero_factura']); ?>;
+
+            function showToast(msg) {
+                const t = document.getElementById('toast');
+                t.textContent = msg;
+                t.classList.add('show');
+                clearTimeout(window._toastTimer);
+                window._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+            }
+
+            function printTicket() {
+                window.print();
+            }
+
+            function downloadPDF() {
+                const el = document.querySelector('#ticketPrintArea .ticket');
+                if (!el || typeof html2pdf === 'undefined') {
+                    showToast('No se pudo cargar el generador de PDF');
+                    return;
+                }
+                showToast('Generando PDF…');
+                // Alto dinámico en mm a partir del contenido real del ticket (58mm de ancho fijo).
+                const heightMM = Math.max(60, (el.offsetHeight / 3.7795) + 6);
+                html2pdf().set({
+                    margin: 0,
+                    filename: 'Ticket-' + NUMERO_FACTURA + '.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 3, backgroundColor: '#ffffff' },
+                    jsPDF: { unit: 'mm', format: [58, heightMM], orientation: 'portrait' }
+                }).from(el).save().then(() => {
+                    showToast('PDF descargado ✓');
+                }).catch(() => {
+                    showToast('Ocurrió un error generando el PDF');
+                });
+            }
+
+            function openEmailModal() {
+                document.getElementById('emailModal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('emailInput').focus(), 50);
+            }
+            function closeEmailModal() {
+                document.getElementById('emailModal').classList.add('hidden');
+            }
+
+            function confirmSendEmail() {
+                const input = document.getElementById('emailInput');
+                const email = input.value.trim();
+                if (!email || !email.includes('@') || !email.includes('.')) {
+                    showToast('Ingresa un correo válido');
+                    return;
+                }
+                closeEmailModal();
+                showToast('Enviando ticket…');
+
+                // NOTA PARA ANA: crea este endpoint en tu servidor y conéctalo a tu
+                // herramienta PHPMailer existente. Debe recibir {numero_factura, email}
+                // y responder JSON: {"success": true|false, "message": "..."}
+                fetch('enviar-ticket-email.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ numero_factura: NUMERO_FACTURA, email })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    showToast(data && data.success ? 'Ticket enviado ✓' : (data && data.message ? data.message : 'No se pudo enviar el ticket'));
+                })
+                .catch(() => {
+                    showToast('Endpoint de envío no configurado aún');
+                });
+
+                input.value = '';
+            }
+
+            function shareTicket() {
+                const shareUrl = window.location.href;
+                if (navigator.share) {
+                    navigator.share({ title: 'Ticket ' + NUMERO_FACTURA, url: shareUrl }).catch(() => {});
+                } else if (navigator.clipboard) {
+                    navigator.clipboard.writeText(shareUrl).then(() => showToast('Enlace copiado ✓'));
+                } else {
+                    showToast('No se pudo compartir en este navegador');
+                }
+            }
+
+            // Cerrar modal con click fuera o tecla Escape
+            document.getElementById('emailModal').addEventListener('click', function (e) {
+                if (e.target === this) closeEmailModal();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeEmailModal();
+            });
         </script>
     </body>
     </html>
