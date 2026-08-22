@@ -445,7 +445,7 @@ if ($type === 'ticket') {
                         </div>
 
                         <div class="attention-row">
-                            <span class="day">Sábado y Domingo</span>
+                            <span class="day">Sábados</span>
                             <span class="time">9:00 AM - 2:00 PM</span>
                         </div>
 
