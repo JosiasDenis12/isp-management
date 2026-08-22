@@ -85,16 +85,149 @@ if ($type === 'ticket') {
             .note { margin: 0; font-size: 8.5pt; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
             .thank-you { font-size: 9pt; font-weight: 800; letter-spacing: .1mm; }
             .small { font-size: 8.5pt; font-weight: 600; color: #000; overflow-wrap: anywhere; }
+            /* ===============================
+   CIERRE DEL TICKET
+   Compatible con ancho útil POS58
+================================ */
+
+            .thank-you {
+                width: 100%;
+                text-align: center;
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                margin: 6px 0 8px;
+                line-height: 1.3;
+                box-sizing: border-box;
+            }
+
+            .attention-hours {
+                width: 100%;
+                margin: 0;
+                padding: 5px 0 2px;
+                box-sizing: border-box;
+            }
+
+            .attention-header {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 3px;
+                margin-bottom: 5px;
+                box-sizing: border-box;
+            }
+
+            .attention-line {
+                flex: 1;
+                min-width: 0;
+                height: 1px;
+                background: #000;
+            }
+
+            .attention-title {
+                flex-shrink: 1;
+                min-width: 0;
+                white-space: nowrap;
+                font-size: 8px;
+                font-weight: 900;
+                letter-spacing: 0.5px;
+                line-height: 1.2;
+            }
+
+            .attention-row {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                gap: 4px;
+                padding: 3px 0;
+                box-sizing: border-box;
+
+                font-size: 9px;
+                line-height: 1.4;
+            }
+
+            .attention-row .day {
+                min-width: 0;
+                font-weight: 700;
+            }
+
+            .attention-row .time {
+                flex-shrink: 0;
+                white-space: nowrap;
+                text-align: right;
+                font-weight: 800;
+            }
 
             @media print {
-                html { margin: 0 !important; padding: 0 !important; }
-                html, body { width: 58mm; min-width: 58mm; max-width: 58mm; background: #fff; }
-                body { margin: 0 auto !important; padding: 5mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
-                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-                .no-print { display: none !important; }
-                .ticket { width: 48mm; max-width: 48mm; margin: 0 auto !important; box-shadow: none !important; border: none !important; }
-                .ticket-stage { margin: 0 auto !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; border: none !important; }
-            }
+
+    @page {
+        size: 58mm auto;
+        margin: 0;
+    }
+
+    html,
+    body {
+        width: 58mm !important;
+        min-width: 58mm !important;
+        max-width: 58mm !important;
+
+        margin: 0 !important;
+        padding: 0 !important;
+
+        background: #fff !important;
+        overflow: hidden !important;
+
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box !important;
+
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .ticket-stage {
+        width: 58mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    .ticket {
+        width: 48mm !important;
+        min-width: 48mm !important;
+        max-width: 48mm !important;
+
+        /* Pequeña zona de seguridad física */
+        margin-left: 1mm !important;
+        margin-right: 0 !important;
+
+        padding: 0 !important;
+
+        box-sizing: border-box !important;
+
+        box-shadow: none !important;
+        border: none !important;
+
+        /* IMPORTANTE: no desplazar hacia la izquierda */
+        transform: none !important;
+    }
+}
 
             /* ============================================================
                2) SHELL DE VISTA PREVIA (solo pantalla, no imprime)
@@ -293,13 +426,31 @@ if ($type === 'ticket') {
                                 <p class="note"><?php echo htmlspecialchars($pago['observaciones']); ?></p>
                             <?php endif; ?>
                             <div class="divider"></div>
-                            <div class="center small" style="letter-spacing:.5px;">¡Gracias por su preferencia!</div>
-                        </div>
-                        <!-- =================== FIN TICKET (formato intacto) =================== -->
+
+                    <div class="thank-you">
+                        ¡Gracias por su preferencia!
                     </div>
-                </main>
-            </div>
-        </div>
+
+                    <div class="attention-hours">
+
+                        <div class="attention-header">
+                            <span class="attention-line"></span>
+                            <span class="attention-title">HORARIO DE ATENCIÓN</span>
+                            <span class="attention-line"></span>
+                        </div>
+
+                        <div class="attention-row">
+                            <span class="day">Lunes - Viernes</span>
+                            <span class="time">9:00 AM - 5:00 PM</span>
+                        </div>
+
+                        <div class="attention-row">
+                            <span class="day">Sábado y Domingo</span>
+                            <span class="time">9:00 AM - 2:00 PM</span>
+                        </div>
+
+                    </div>
+            
 
         <!-- Modal: enviar por email -->
         <div id="emailModal" class="modal-overlay hidden no-print">
