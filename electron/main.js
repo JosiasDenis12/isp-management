@@ -1,13 +1,41 @@
-const { app, BrowserWindow, dialog } = require('electron');
+const {
+    app,
+    BrowserWindow,
+    dialog
+} = require('electron');
+
 const path = require('path');
 const { spawn } = require('child_process');
 const net = require('net');
+
+const {
+    autoUpdater
+} = require('electron-updater');
+
 
 let mainWindow = null;
 let phpProcess = null;
 
 const HOST = '127.0.0.1';
 const PORT = 8080;
+
+
+/* =========================================================
+   AUTO UPDATER
+========================================================= */
+
+/**
+ * No descarga automáticamente.
+ * El usuario decide cuándo actualizar.
+ */
+autoUpdater.autoDownload = false;
+
+
+/**
+ * Instala automáticamente al cerrar únicamente
+ * después de que una actualización haya sido descargada.
+ */
+autoUpdater.autoInstallOnAppQuit = true;
 
 
 /**
@@ -54,12 +82,6 @@ function getPhpPath() {
 
 /**
  * Obtiene la ruta del icono.
- *
- * Desarrollo:
- * assets/icon.ico
- *
- * Producción:
- * resources/backend/assets/icon.ico
  */
 function getIconPath() {
 
@@ -93,21 +115,29 @@ function isPortAvailable(port) {
 
         const server = net.createServer();
 
-        server.once('error', () => {
+        server.once(
+            'error',
+            () => {
 
-            resolve(false);
+                resolve(false);
 
-        });
+            }
+        );
 
-        server.once('listening', () => {
+        server.once(
+            'listening',
+            () => {
 
-            server.close(() => {
+                server.close(
+                    () => {
 
-                resolve(true);
+                        resolve(true);
 
-            });
+                    }
+                );
 
-        });
+            }
+        );
 
         server.listen(
             port,
@@ -126,26 +156,25 @@ async function waitForServer(retries = 60) {
 
     for (let i = 0; i < retries; i++) {
 
-        const available = await isPortAvailable(PORT);
+        const available =
+            await isPortAvailable(PORT);
 
-        /*
-         * Si el puerto ya no está disponible,
-         * significa que el servidor PHP lo está utilizando.
-         */
         if (!available) {
 
             return true;
 
         }
 
-        await new Promise((resolve) => {
+        await new Promise(
+            (resolve) => {
 
-            setTimeout(
-                resolve,
-                250
-            );
+                setTimeout(
+                    resolve,
+                    250
+                );
 
-        });
+            }
+        );
 
     }
 
@@ -159,14 +188,31 @@ async function waitForServer(retries = 60) {
  */
 async function startPhpServer() {
 
-    const projectPath = getProjectPath();
-    const phpPath = getPhpPath();
+    const projectPath =
+        getProjectPath();
+
+    const phpPath =
+        getPhpPath();
+
 
     console.log('==============================');
     console.log('SkyNetwork');
-    console.log('Modo empaquetado:', app.isPackaged);
-    console.log('Proyecto PHP:', projectPath);
-    console.log('PHP:', phpPath);
+    console.log(
+        'Versión:',
+        app.getVersion()
+    );
+    console.log(
+        'Modo empaquetado:',
+        app.isPackaged
+    );
+    console.log(
+        'Proyecto PHP:',
+        projectPath
+    );
+    console.log(
+        'PHP:',
+        phpPath
+    );
     console.log('==============================');
 
 
@@ -250,17 +296,12 @@ async function startPhpServer() {
 
 
 /**
- * Crea la ventana principal de SkyNetwork.
+ * Crea la ventana principal.
  */
 function createWindow() {
 
-    const iconPath = getIconPath();
-
-
-    console.log(
-        'Icono:',
-        iconPath
-    );
+    const iconPath =
+        getIconPath();
 
 
     mainWindow = new BrowserWindow({
@@ -305,9 +346,232 @@ function createWindow() {
 }
 
 
+/* =========================================================
+   EVENTOS DEL AUTO UPDATER
+========================================================= */
+
+
 /**
- * Inicio de Electron.
+ * Se encontró una actualización.
+ *
+ * SOLO aquí mostramos una ventana al usuario.
  */
+autoUpdater.on(
+    'update-available',
+    async (info) => {
+
+        console.log(
+            `Nueva actualización disponible: ${info.version}`
+        );
+
+
+        const result =
+            await dialog.showMessageBox({
+
+                type: 'info',
+
+                title:
+                    'Actualización disponible',
+
+                message:
+                    `SkyNetwork ${info.version} está disponible.`,
+
+                detail:
+                    `Hay una nueva versión disponible.
+
+Versión actual: ${app.getVersion()}
+Nueva versión: ${info.version}
+
+¿Deseas descargarla ahora?`,
+
+                buttons: [
+                    'Actualizar ahora',
+                    'Más tarde'
+                ],
+
+                defaultId: 0,
+
+                cancelId: 1
+
+            });
+
+
+        if (result.response === 0) {
+
+            console.log(
+                'Usuario aceptó descargar actualización.'
+            );
+
+            autoUpdater.downloadUpdate();
+
+        }
+
+    }
+);
+
+
+/**
+ * NO hay actualización.
+ *
+ * IMPORTANTE:
+ * Aquí NO mostramos ningún diálogo.
+ * Solo registramos en consola.
+ */
+autoUpdater.on(
+    'update-not-available',
+    (info) => {
+
+        console.log(
+            `SkyNetwork está actualizado. Versión actual: ${info.version}`
+        );
+
+    }
+);
+
+
+/**
+ * Progreso de descarga.
+ */
+autoUpdater.on(
+    'download-progress',
+    (progressObj) => {
+
+        const percent =
+            Math.round(
+                progressObj.percent
+            );
+
+
+        console.log(
+            `Descargando actualización: ${percent}%`
+        );
+
+    }
+);
+
+
+/**
+ * Actualización descargada.
+ */
+autoUpdater.on(
+    'update-downloaded',
+    async (info) => {
+
+        console.log(
+            `Actualización descargada: ${info.version}`
+        );
+
+
+        const result =
+            await dialog.showMessageBox({
+
+                type: 'info',
+
+                title:
+                    'Actualización lista',
+
+                message:
+                    `SkyNetwork ${info.version} está listo para instalar.`,
+
+                detail:
+                    'La aplicación debe reiniciarse para completar la actualización.',
+
+                buttons: [
+                    'Reiniciar e instalar',
+                    'Más tarde'
+                ],
+
+                defaultId: 0,
+
+                cancelId: 1
+
+            });
+
+
+        if (result.response === 0) {
+
+            autoUpdater.quitAndInstall();
+
+        }
+
+    }
+);
+
+
+/**
+ * Error durante la actualización.
+ */
+autoUpdater.on(
+    'error',
+    (error) => {
+
+        console.error(
+            'Error del Auto Updater:',
+            error
+        );
+
+
+        /**
+         * Mostramos error únicamente si la aplicación
+         * está empaquetada.
+         */
+        if (app.isPackaged) {
+
+            dialog.showMessageBox({
+
+                type: 'error',
+
+                title:
+                    'Error buscando actualización',
+
+                message:
+                    'No fue posible comprobar las actualizaciones.',
+
+                detail:
+                    error.message
+
+            });
+
+        }
+
+    }
+);
+
+
+/**
+ * Busca actualizaciones silenciosamente.
+ */
+function checkForUpdates() {
+
+    /**
+     * En desarrollo no buscamos actualizaciones.
+     */
+    if (!app.isPackaged) {
+
+        console.log(
+            'Modo desarrollo: Auto Updater desactivado.'
+        );
+
+        return;
+
+    }
+
+
+    console.log(
+        `Buscando actualizaciones desde versión ${app.getVersion()}...`
+    );
+
+
+    autoUpdater.checkForUpdates();
+
+}
+
+
+/* =========================================================
+   INICIO DE ELECTRON
+========================================================= */
+
+
 app.whenReady().then(
     async () => {
 
@@ -327,6 +591,26 @@ app.whenReady().then(
 
 
             createWindow();
+
+
+            /**
+             * Esperamos 5 segundos para que:
+             *
+             * 1. PHP termine de iniciar.
+             * 2. La interfaz cargue.
+             * 3. No afectemos la experiencia inicial.
+             *
+             * La búsqueda ocurre en segundo plano.
+             */
+            setTimeout(
+                () => {
+
+                    checkForUpdates();
+
+                },
+                5000
+            );
+
 
         } catch (error) {
 
@@ -351,8 +635,7 @@ app.whenReady().then(
 
 
 /**
- * Cierra el servidor PHP
- * cuando SkyNetwork termina.
+ * Cierra PHP cuando SkyNetwork termina.
  */
 app.on(
     'before-quit',
@@ -372,8 +655,7 @@ app.on(
 
 
 /**
- * Recrea la ventana cuando
- * la aplicación se vuelve a activar.
+ * Recrea ventana si es necesario.
  */
 app.on(
     'activate',
