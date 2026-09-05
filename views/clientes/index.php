@@ -531,33 +531,79 @@
             }
 
             async function confirmDeleteCliente() {
-                if (deleting || !selectedClienteId) return;
-                deleting = true;
-                setDeleteButtonLoading(true);
+    if (deleting || !selectedClienteId) return;
 
-                try {
-                    const resp = await fetch(endpointFromTemplate(deleteUrlTpl, selectedClienteId), {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    });
-                    const data = await resp.json();
-                    if (!resp.ok || !data.success) {
-                        throw new Error(data.message || 'No fue posible eliminar el cliente.');
-                    }
+    deleting = true;
+    setDeleteButtonLoading(true);
 
-                    if (deleteModal) deleteModal.hide();
-                    const msg = encodeURIComponent(data.message || 'Cliente eliminado exitosamente');
-                    window.location.href = '<?php echo url('clientes'); ?>?success=' + msg;
-                } catch (err) {
-                    setDeleteState('No fue posible eliminar el cliente. No se realizaron cambios en la base de datos. Intenta nuevamente.', 'error');
-                    setDeleteButtonLoading(false);
-                } finally {
-                    deleting = false;
+    try {
+        const resp = await fetch(
+            endpointFromTemplate(
+                deleteUrlTpl,
+                selectedClienteId
+            ),
+            {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
                 }
             }
+        );
+
+        let data;
+
+        try {
+            data = await resp.json();
+        } catch (jsonError) {
+            throw new Error(
+                'El servidor no devolvió una respuesta JSON válida. ' +
+                'HTTP ' + resp.status
+            );
+        }
+
+        if (!resp.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                'Error desconocido al eliminar el cliente.'
+            );
+        }
+
+        if (deleteModal) {
+            deleteModal.hide();
+        }
+
+        const msg = encodeURIComponent(
+            data.message ||
+            'Cliente eliminado exitosamente'
+        );
+
+        window.location.href =
+            '<?php echo url('clientes'); ?>?success=' + msg;
+
+    } catch (err) {
+
+        console.error(
+            'ERROR AL ELIMINAR CLIENTE:',
+            err
+        );
+
+        const mensajeError =
+            err && err.message
+                ? err.message
+                : 'Error desconocido al eliminar el cliente.';
+
+        setDeleteState(
+            mensajeError,
+            'error'
+        );
+
+        setDeleteButtonLoading(false);
+
+    } finally {
+        deleting = false;
+    }
+}
 
             function normalize(v) {
                 return (v || '').toString().trim().toLowerCase();
