@@ -1,124 +1,115 @@
-# Sistema de Gestión ISP - PHP MVC
+# ISP-MANAGEMENT
 
-Sistema completo de gestión de ventas y pagos para proveedores de internet desarrollado en PHP con patrón MVC.
+<p align="center">
+  <strong>Sistema de gestión integral para proveedores de servicios de Internet (ISP).</strong>
+</p>
 
-## 🚀 Instalación Rápida
+<p align="center">
+  Plataforma de escritorio diseñada para centralizar la gestión de clientes, pagos, servicios, equipos técnicos y operaciones administrativas.
+</p>
 
-### 1. Requisitos
-- PHP 7.4 o superior
-- MySQL 5.7 o superior
-- Apache/Nginx con mod_rewrite
-- Extensiones PHP: PDO, PDO_MySQL
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" />
+  <img src="https://img.shields.io/badge/PHP-8%2B-777BB4?style=for-the-badge&logo=php&logoColor=white" />
+  <img src="https://img.shields.io/badge/SQLite-Local%20Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Electron-Desktop-47848F?style=for-the-badge&logo=electron&logoColor=white" />
+  <img src="https://img.shields.io/badge/Architecture-MVC-111827?style=for-the-badge" />
+</p>
 
-### 2. Configuración de Base de Datos
+---
 
-\`\`\`sql
--- Crear base de datos
-CREATE DATABASE isp_management;
-USE isp_management;
+## 🚀 Acerca de ISP-MANAGEMENT
 
--- Ejecutar scripts
--- 1. database/01-create-tables.sql
--- 2. database/02-seed-data.sql
-\`\`\`
+**ISP-MANAGEMENT** es un sistema de gestión diseñado para proveedores de servicios de Internet (ISP/WISP), desarrollado para facilitar la administración diaria de clientes, pagos, servicios contratados, infraestructura y equipos técnicos.
 
-### 3. Configuración del Sistema
+El sistema centraliza las operaciones principales de un proveedor de Internet en una interfaz moderna, intuitiva y preparada para ejecutarse como aplicación de escritorio.
 
-1. **Clonar/descargar archivos** en tu servidor web
-2. **Configurar base de datos** en `config/database.php`:
-   \`\`\`php
-   private $host = 'localhost';
-   private $db_name = 'isp_management';
-   private $username = 'tu_usuario';
-   private $password = 'tu_password';
-   \`\`\`
-3. **Verificar instalación** visitando `setup.php`
-4. **Acceder al sistema** en `index.php`
+Su arquitectura permite trabajar localmente mediante **SQLite**, eliminando la necesidad de instalar y configurar un servidor de base de datos externo para su funcionamiento como aplicación distribuible.
 
-## 📁 Estructura del Proyecto
+---
 
-\`\`\`
-/
-├── config/
-│   ├── config.php          # Configuración general
-│   └── database.php        # Conexión a BD
-├── controllers/
-│   ├── DashboardController.php
-│   ├── ClienteController.php
-│   ├── PagoController.php
-│   └── EquipoController.php
-├── models/
-│   ├── Cliente.php
-│   ├── Pago.php
-│   └── Equipo.php
-├── views/
-│   ├── layouts/
-│   ├── dashboard/
-│   ├── clientes/
-│   ├── pagos/
-│   └── equipos/
-├── core/
-│   └── Router.php          # Sistema de rutas
-├── database/
-│   ├── 01-create-tables.sql
-│   └── 02-seed-data.sql
-├── setup.php               # Verificación de instalación
-└── index.php              # Punto de entrada
-\`\`\`
+## ✨ Características principales
 
-## 🔧 Solución de Problemas
+### 📊 Dashboard
+Visualización centralizada de información relevante para la operación del ISP.
 
-### Error: "relation clientes does not exist"
-Este error indica que estás ejecutando el código Next.js en lugar del PHP.
+- Estadísticas generales
+- Clientes activos
+- Clientes próximos a vencer
+- Servicios vencidos
+- Pagos recientes
+- Indicadores operativos
+- Resumen general del negocio
 
-**Solución:**
-1. Asegúrate de estar ejecutando el código PHP
-2. Verifica que la base de datos esté creada
-3. Ejecuta los scripts SQL
-4. Visita `setup.php` para verificar la instalación
+### 👥 Gestión de clientes
 
-### Error de conexión a base de datos
-1. Verifica que MySQL esté ejecutándose
-2. Confirma las credenciales en `config/database.php`
-3. Asegúrate de que la base de datos `isp_management` exista
+Administración completa del ciclo de vida de los clientes.
 
-### URLs no funcionan (404)
-1. Habilita mod_rewrite en Apache
-2. Configura el DocumentRoot correctamente
-3. Verifica permisos de archivos
+- Registro de nuevos clientes
+- Edición de información
+- Consulta detallada
+- Estado del servicio
+- Información de contacto
+- Servicio contratado
+- Fecha de vencimiento
+- Gestión de cortes
+- Historial relacionado
 
-## 🌟 Características
+### 💳 Gestión de pagos
 
-- ✅ **Dashboard** con estadísticas en tiempo real
-- ✅ **Gestión de Clientes** con estados y tipos de conexión
-- ✅ **Pagos y Facturación** con generación automática de facturas
-- ✅ **Equipos Técnicos** con seguimiento de estado
-- ✅ **Diseño Responsivo** con Bootstrap 5
-- ✅ **Seguridad** con prepared statements
-- ✅ **Arquitectura MVC** limpia y escalable
+Control y registro de operaciones financieras.
 
-## 🔗 URLs del Sistema
+- Registro de pagos
+- Historial de pagos
+- Métodos de pago
+- Control de vencimientos
+- Pagos pendientes
+- Información de clientes asociada
+- Generación de comprobantes
 
-- `/` o `/dashboard` - Panel principal
-- `/clientes` - Gestión de clientes
-- `/clientes/create` - Nuevo cliente
-- `/pagos` - Pagos y facturación
-- `/pagos/create` - Registrar pago
-- `/equipos` - Equipos técnicos
-- `/equipos/create` - Registrar equipo
+### 📡 Gestión de equipos
 
-## 🛠️ Desarrollo
+Control de infraestructura y equipos asignados.
 
-Para añadir nuevas funcionalidades:
+- Registro de equipos
+- Equipos instalados
+- Antenas
+- Routers / Modems
+- Direcciones IP
+- Direcciones MAC
+- Credenciales de dispositivos
+- Estado del equipo
+- Relación con clientes
 
-1. **Modelo**: Crear en `models/`
-2. **Controlador**: Crear en `controllers/`
-3. **Vista**: Crear en `views/`
-4. **Ruta**: Añadir en `index.php`
+### 📈 Reportes
 
-## 📞 Soporte
+Herramientas para consultar y analizar información operativa.
 
-Si encuentras problemas:
-1. Visita `setup.php` para diagnóstico
-2. Verifica logs de PHP y MySQL
-3. Confirma que todos los archivos estén subidos correctamente
+- Reportes de clientes
+- Información de pagos
+- Equipos registrados
+- Estados operativos
+- Consultas administrativas
+
+---
+
+# 🖥️ Aplicación de Escritorio
+
+ISP-MANAGEMENT puede ejecutarse como una aplicación de escritorio para Windows.
+
+La aplicación integra:
+
+```text
+Electron
+   │
+   ▼
+Aplicación de Escritorio
+   │
+   ▼
+Servidor PHP Portable
+   │
+   ▼
+Arquitectura MVC
+   │
+   ▼
+SQLite
