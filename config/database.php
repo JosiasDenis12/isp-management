@@ -8,30 +8,57 @@ class Database
     public function __construct()
     {
         /*
-         * Ruta completamente portable.
+         * Electron proporciona la ruta de la base
+         * de datos persistente mediante esta variable
+         * de entorno.
          *
-         * Funciona sin importar dónde se instale SkyNetwork:
-         *
-         * C:\Program Files\SkyNetwork\
-         * D:\Aplicaciones\SkyNetwork\
-         * C:\Users\Usuario\Desktop\SkyNetwork\
-         *
-         * Siempre busca:
-         *
-         * ../database/skynetwork.db
-         *
-         * relativo a este archivo.
+         * Producción:
+         * C:\Users\Usuario\AppData\Roaming\SkyNetwork\
+         * database\skynetwork.db
          */
-        $this->dbPath = dirname(__DIR__) . DIRECTORY_SEPARATOR
+        $persistentPath = getenv(
+            'SKYNETWORK_DB_PATH'
+        );
+
+
+        /*
+         * Si Electron proporcionó una ruta válida,
+         * utilizamos la base de datos persistente.
+         */
+        if (
+            $persistentPath !== false
+            && $persistentPath !== ''
+        ) {
+
+            $this->dbPath = $persistentPath;
+
+            return;
+
+        }
+
+
+        /*
+         * Modo desarrollo / compatibilidad.
+         *
+         * Si PHP se ejecuta fuera de Electron,
+         * utilizamos la base local del proyecto.
+         *
+         * database/skynetwork.db
+         */
+        $this->dbPath = dirname(__DIR__)
+            . DIRECTORY_SEPARATOR
             . 'database'
             . DIRECTORY_SEPARATOR
             . 'skynetwork.db';
     }
 
+
     public function getConnection(): PDO
     {
         if ($this->conn instanceof PDO) {
+
             return $this->conn;
+
         }
 
         try {
@@ -40,15 +67,19 @@ class Database
              * Verificar que la base exista.
              */
             if (!file_exists($this->dbPath)) {
+
                 throw new RuntimeException(
                     'No se encontró la base de datos SQLite en: '
                     . $this->dbPath
                 );
+
             }
+
 
             $this->conn = new PDO(
                 'sqlite:' . $this->dbPath
             );
+
 
             /*
              * Mostrar errores mediante excepciones.
@@ -58,6 +89,7 @@ class Database
                 PDO::ERRMODE_EXCEPTION
             );
 
+
             /*
              * Resultados como arrays asociativos.
              */
@@ -66,6 +98,7 @@ class Database
                 PDO::FETCH_ASSOC
             );
 
+
             /*
              * Activar claves foráneas.
              */
@@ -73,12 +106,15 @@ class Database
                 'PRAGMA foreign_keys = ON'
             );
 
+
             /*
-             * Mejor rendimiento para lecturas y escrituras.
+             * Mejor rendimiento para lecturas
+             * y escrituras.
              */
             $this->conn->exec(
                 'PRAGMA journal_mode = WAL'
             );
+
 
             /*
              * Esperar si la base está ocupada.
@@ -95,10 +131,12 @@ class Database
                 0,
                 $exception
             );
+
         }
 
         return $this->conn;
     }
+
 
     public function testConnection(): bool
     {
@@ -109,8 +147,10 @@ class Database
         } catch (Throwable $e) {
 
             return false;
+
         }
     }
+
 
     public function getDatabasePath(): string
     {

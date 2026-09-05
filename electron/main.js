@@ -5,7 +5,13 @@ const {
 } = require('electron');
 
 const path = require('path');
-const { spawn } = require('child_process');
+const fs = require('fs');
+
+const {
+    spawn,
+    spawnSync
+} = require('child_process');
+
 const net = require('net');
 
 const {
@@ -16,27 +22,52 @@ const {
 let mainWindow = null;
 let phpProcess = null;
 
+
+/* =========================================================
+   ESTADO GLOBAL DE CIERRE Y RESPALDOS
+========================================================= */
+
+let isQuitting = false;
+
+let shutdownBackupCompleted = false;
+
+let updateBackupCompleted = false;
+
+
 const HOST = '127.0.0.1';
 const PORT = 8080;
+
+
+/* =========================================================
+   CONFIGURACIÓN DE RESPALDOS
+========================================================= */
+
+/**
+ * Cantidad máxima de respaldos automáticos
+ * que se conservarán.
+ */
+const MAX_BACKUPS = 30;
+
+
+/**
+ * Crear automáticamente un respaldo cuando
+ * SkyNetwork se cierre correctamente.
+ */
+const CREATE_BACKUP_ON_EXIT = true;
 
 
 /* =========================================================
    AUTO UPDATER
 ========================================================= */
 
-/**
- * No descarga automáticamente.
- * El usuario decide cuándo actualizar.
- */
 autoUpdater.autoDownload = false;
 
-
-/**
- * Instala automáticamente al cerrar únicamente
- * después de que una actualización haya sido descargada.
- */
 autoUpdater.autoInstallOnAppQuit = true;
 
+
+/* =========================================================
+   RUTAS DEL PROYECTO Y BASE DE DATOS
+========================================================= */
 
 /**
  * Obtiene la ruta real del backend PHP.
@@ -67,6 +98,71 @@ function getProjectPath() {
 
 
 /**
+ * Obtiene la carpeta persistente de datos
+ * del usuario.
+ *
+ * Ejemplo:
+ *
+ * C:\Users\Usuario\AppData\Roaming\skynetwork
+ */
+function getUserDataPath() {
+
+    return app.getPath('userData');
+
+}
+
+
+/**
+ * Obtiene la ruta de la base de datos
+ * persistente.
+ */
+function getPersistentDatabasePath() {
+
+    return path.join(
+        getUserDataPath(),
+        'database',
+        'skynetwork.db'
+    );
+
+}
+
+
+/**
+ * Obtiene la carpeta donde se guardarán
+ * los respaldos automáticos.
+ *
+ * Ejemplo:
+ *
+ * C:\Users\Usuario\AppData\Roaming\
+ * skynetwork\
+ * backups\
+ */
+function getBackupsDirectory() {
+
+    return path.join(
+        getUserDataPath(),
+        'backups'
+    );
+
+}
+
+
+/**
+ * Obtiene la ruta de la base plantilla
+ * incluida dentro del proyecto o instalador.
+ */
+function getTemplateDatabasePath() {
+
+    return path.join(
+        getProjectPath(),
+        'database',
+        'skynetwork.db'
+    );
+
+}
+
+
+/**
  * Obtiene la ruta del ejecutable PHP Portable.
  */
 function getPhpPath() {
@@ -76,6 +172,648 @@ function getPhpPath() {
         'php',
         'php.exe'
     );
+
+}
+
+
+/* =========================================================
+   UTILIDADES DE RESPALDO
+========================================================= */
+
+/**
+ * Genera una fecha segura para nombres
+ * de archivos.
+ *
+ * Ejemplo:
+ *
+ * 2026-09-05_12-45-30
+ */
+function getBackupTimestamp() {
+
+    const now = new Date();
+
+    const year =
+        now.getFullYear();
+
+    const month =
+        String(
+            now.getMonth() + 1
+        ).padStart(
+            2,
+            '0'
+        );
+
+    const day =
+        String(
+            now.getDate()
+        ).padStart(
+            2,
+            '0'
+        );
+
+    const hours =
+        String(
+            now.getHours()
+        ).padStart(
+            2,
+            '0'
+        );
+
+    const minutes =
+        String(
+            now.getMinutes()
+        ).padStart(
+            2,
+            '0'
+        );
+
+    const seconds =
+        String(
+            now.getSeconds()
+        ).padStart(
+            2,
+            '0'
+        );
+
+    return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+
+}
+
+
+/**
+ * Intenta sincronizar SQLite antes
+ * de crear un respaldo.
+ *
+ * Esto es importante porque usamos WAL.
+ *
+ * SQLite puede mantener cambios recientes
+ * temporalmente en archivos WAL.
+ *
+ * El checkpoint intenta consolidar esos
+ * cambios dentro del archivo principal .db.
+ */
+function checkpointDatabase() {
+
+    const phpPath =
+        getPhpPath();
+
+    const databasePath =
+        getPersistentDatabasePath();
+
+
+    if (!fs.existsSync(phpPath)) {
+
+        console.warn(
+            'PHP Portable no encontrado. '
+            + 'Se omitirá WAL checkpoint.'
+        );
+
+        return false;
+
+    }
+
+
+    if (!fs.existsSync(databasePath)) {
+
+        console.warn(
+            'Base de datos no encontrada para checkpoint.'
+        );
+
+        return false;
+
+    }
+
+
+    try {
+
+        const escapedDatabasePath =
+            databasePath
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'");
+
+
+        const phpCode = `
+            try {
+
+                $pdo = new PDO(
+                    'sqlite:${escapedDatabasePath}'
+                );
+
+                $pdo->setAttribute(
+                    PDO::ATTR_ERRMODE,
+                    PDO::ERRMODE_EXCEPTION
+                );
+
+                $pdo->exec(
+                    'PRAGMA busy_timeout = 5000'
+                );
+
+                $pdo->exec(
+                    'PRAGMA wal_checkpoint(TRUNCATE)'
+                );
+
+                echo 'CHECKPOINT_OK';
+
+            } catch (Throwable $e) {
+
+                fwrite(
+                    STDERR,
+                    $e->getMessage()
+                );
+
+                exit(1);
+
+            }
+        `;
+
+
+        const result = spawnSync(
+
+            phpPath,
+
+            [
+                '-r',
+                phpCode
+            ],
+
+            {
+
+                windowsHide: true,
+
+                encoding: 'utf8',
+
+                timeout: 10000
+
+            }
+
+        );
+
+
+        if (
+            result.status === 0
+        ) {
+
+            console.log(
+                'SQLite WAL checkpoint completado.'
+            );
+
+            return true;
+
+        }
+
+
+        console.warn(
+            'No fue posible completar WAL checkpoint.'
+        );
+
+
+        if (result.stderr) {
+
+            console.warn(
+                result.stderr
+            );
+
+        }
+
+
+        return false;
+
+    } catch (error) {
+
+        console.warn(
+            'Error realizando WAL checkpoint:',
+            error.message
+        );
+
+        return false;
+
+    }
+
+}
+
+
+/**
+ * Elimina respaldos antiguos.
+ *
+ * Conserva únicamente los últimos
+ * MAX_BACKUPS respaldos.
+ */
+function cleanupOldBackups() {
+
+    const backupsDirectory =
+        getBackupsDirectory();
+
+
+    if (!fs.existsSync(backupsDirectory)) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const backups = fs.readdirSync(
+            backupsDirectory
+        )
+            .filter(
+                (file) =>
+                    file.startsWith('skynetwork-')
+                    && file.endsWith('.db')
+            )
+            .map(
+                (file) => {
+
+                    const fullPath =
+                        path.join(
+                            backupsDirectory,
+                            file
+                        );
+
+                    return {
+
+                        file,
+
+                        fullPath,
+
+                        stats:
+                            fs.statSync(
+                                fullPath
+                            )
+
+                    };
+
+                }
+            )
+            .sort(
+                (a, b) =>
+                    b.stats.mtimeMs
+                    - a.stats.mtimeMs
+            );
+
+
+        /**
+         * Si hay más respaldos de los permitidos,
+         * eliminar los más antiguos.
+         */
+        if (
+            backups.length > MAX_BACKUPS
+        ) {
+
+            const oldBackups =
+                backups.slice(
+                    MAX_BACKUPS
+                );
+
+
+            for (
+                const backup of oldBackups
+            ) {
+
+                try {
+
+                    /**
+                     * Eliminar archivo DB.
+                     */
+                    fs.unlinkSync(
+                        backup.fullPath
+                    );
+
+
+                    /**
+                     * Eliminar metadata JSON correspondiente.
+                     */
+                    const metadataPath =
+                        backup.fullPath.replace(
+                            '.db',
+                            '.json'
+                        );
+
+
+                    if (
+                        fs.existsSync(
+                            metadataPath
+                        )
+                    ) {
+
+                        fs.unlinkSync(
+                            metadataPath
+                        );
+
+                    }
+
+
+                    console.log(
+                        'Backup antiguo eliminado:',
+                        backup.file
+                    );
+
+                } catch (error) {
+
+                    console.warn(
+                        'No se pudo eliminar backup antiguo:',
+                        backup.file,
+                        error.message
+                    );
+
+                }
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            'Error limpiando backups antiguos:',
+            error.message
+        );
+
+    }
+
+}
+
+
+/**
+ * Crea un respaldo de la base de datos.
+ *
+ * @param {string} reason
+ *
+ * Motivo del respaldo.
+ *
+ * Ejemplos:
+ *
+ * before-update
+ * application-close
+ * manual
+ * automatic
+ *
+ * @returns {object}
+ */
+function createDatabaseBackup(
+    reason = 'automatic'
+) {
+
+    const databasePath =
+        getPersistentDatabasePath();
+
+    const backupsDirectory =
+        getBackupsDirectory();
+
+
+    try {
+
+        console.log('');
+        console.log(
+            '========================================'
+        );
+
+        console.log(
+            'INICIANDO RESPALDO DE BASE DE DATOS'
+        );
+
+        console.log(
+            '========================================'
+        );
+
+
+        console.log(
+            'Motivo:',
+            reason
+        );
+
+
+        console.log(
+            'Base origen:',
+            databasePath
+        );
+
+
+        /**
+         * Verificar que exista la BD.
+         */
+        if (!fs.existsSync(databasePath)) {
+
+            throw new Error(
+                'No existe la base de datos persistente: '
+                + databasePath
+            );
+
+        }
+
+
+        /**
+         * Crear directorio de backups.
+         */
+        if (!fs.existsSync(backupsDirectory)) {
+
+            fs.mkdirSync(
+                backupsDirectory,
+                {
+                    recursive: true
+                }
+            );
+
+            console.log(
+                'Directorio de backups creado:',
+                backupsDirectory
+            );
+
+        }
+
+
+        /**
+         * Intentar consolidar WAL.
+         */
+        checkpointDatabase();
+
+
+        /**
+         * Crear nombre único.
+         */
+        const timestamp =
+            getBackupTimestamp();
+
+
+        const backupFileName =
+            `skynetwork-${reason}-${timestamp}.db`;
+
+
+        const backupPath =
+            path.join(
+                backupsDirectory,
+                backupFileName
+            );
+
+
+        /**
+         * Copiar la base de datos.
+         */
+        fs.copyFileSync(
+            databasePath,
+            backupPath
+        );
+
+
+        /**
+         * Verificar que se creó correctamente.
+         */
+        if (!fs.existsSync(backupPath)) {
+
+            throw new Error(
+                'El archivo de respaldo no fue creado.'
+            );
+
+        }
+
+
+        const originalSize =
+            fs.statSync(
+                databasePath
+            ).size;
+
+
+        const backupSize =
+            fs.statSync(
+                backupPath
+            ).size;
+
+
+        /**
+         * Validación básica.
+         */
+        if (
+            backupSize === 0
+        ) {
+
+            throw new Error(
+                'El respaldo fue creado vacío.'
+            );
+
+        }
+
+
+        /**
+         * Crear metadata JSON.
+         */
+        const metadataPath =
+            backupPath.replace(
+                '.db',
+                '.json'
+            );
+
+
+        const metadata = {
+
+            application:
+                'SkyNetwork',
+
+            version:
+                app.getVersion(),
+
+            reason,
+
+            createdAt:
+                new Date().toISOString(),
+
+            database:
+                'skynetwork.db',
+
+            originalSize,
+
+            backupSize,
+
+            backupFile:
+                backupFileName
+
+        };
+
+
+        fs.writeFileSync(
+
+            metadataPath,
+
+            JSON.stringify(
+                metadata,
+                null,
+                4
+            ),
+
+            'utf8'
+
+        );
+
+
+        console.log(
+            'Backup creado correctamente.'
+        );
+
+        console.log(
+            'Archivo:',
+            backupPath
+        );
+
+        console.log(
+            'Tamaño:',
+            backupSize,
+            'bytes'
+        );
+
+        console.log(
+            'Versión:',
+            app.getVersion()
+        );
+
+        console.log(
+            'Motivo:',
+            reason
+        );
+
+        console.log(
+            '========================================'
+        );
+
+        console.log('');
+
+
+        /**
+         * Limpiar backups antiguos.
+         */
+        cleanupOldBackups();
+
+
+        return {
+
+            success: true,
+
+            backupPath,
+
+            backupFileName,
+
+            originalSize,
+
+            backupSize
+
+        };
+
+    } catch (error) {
+
+        console.error(
+            'ERROR CREANDO BACKUP:',
+            error
+        );
+
+
+        return {
+
+            success: false,
+
+            error:
+                error.message
+
+        };
+
+    }
 
 }
 
@@ -106,6 +844,170 @@ function getIconPath() {
 }
 
 
+/* =========================================================
+   BASE DE DATOS PERSISTENTE
+========================================================= */
+
+/**
+ * Prepara la base de datos persistente.
+ *
+ * PRIMERA EJECUCIÓN:
+ * - Copia la BD plantilla incluida en la instalación.
+ *
+ * EJECUCIONES POSTERIORES:
+ * - Conserva SIEMPRE la base existente.
+ * - Nunca sobrescribe datos del usuario.
+ *
+ * ACTUALIZACIONES:
+ * - La nueva instalación puede reemplazar resources/backend.
+ * - La BD persistente permanece intacta en AppData.
+ */
+function prepareDatabase() {
+
+    const userDataPath =
+        getUserDataPath();
+
+    const databaseDirectory =
+        path.join(
+            userDataPath,
+            'database'
+        );
+
+    const persistentDatabasePath =
+        getPersistentDatabasePath();
+
+    const templateDatabasePath =
+        getTemplateDatabasePath();
+
+
+    /**
+     * Crear directorio principal si no existe.
+     */
+    if (!fs.existsSync(userDataPath)) {
+
+        fs.mkdirSync(
+            userDataPath,
+            {
+                recursive: true
+            }
+        );
+
+    }
+
+
+    /**
+     * Crear carpeta database si no existe.
+     */
+    if (!fs.existsSync(databaseDirectory)) {
+
+        fs.mkdirSync(
+            databaseDirectory,
+            {
+                recursive: true
+            }
+        );
+
+    }
+
+
+    /**
+     * Primera ejecución.
+     */
+    if (!fs.existsSync(persistentDatabasePath)) {
+
+        console.log(
+            '========================================'
+        );
+
+        console.log(
+            'PRIMERA EJECUCIÓN'
+        );
+
+        console.log(
+            'Creando base de datos persistente.'
+        );
+
+        console.log(
+            'Plantilla:',
+            templateDatabasePath
+        );
+
+        console.log(
+            'Destino:',
+            persistentDatabasePath
+        );
+
+        console.log(
+            '========================================'
+        );
+
+
+        /**
+         * Verificar plantilla.
+         */
+        if (!fs.existsSync(templateDatabasePath)) {
+
+            throw new Error(
+                'No se encontró la base de datos plantilla: '
+                + templateDatabasePath
+            );
+
+        }
+
+
+        /**
+         * Copiar plantilla.
+         */
+        fs.copyFileSync(
+            templateDatabasePath,
+            persistentDatabasePath
+        );
+
+
+        console.log(
+            'Base de datos persistente creada correctamente.'
+        );
+
+    } else {
+
+        console.log(
+            'Base de datos persistente encontrada.'
+        );
+
+        console.log(
+            'Conservando datos existentes del usuario.'
+        );
+
+    }
+
+
+    /**
+     * Verificación final.
+     */
+    if (!fs.existsSync(persistentDatabasePath)) {
+
+        throw new Error(
+            'No fue posible preparar la base de datos persistente.'
+        );
+
+    }
+
+
+    console.log(
+        'Base de datos ACTIVA:',
+        persistentDatabasePath
+    );
+
+
+    return persistentDatabasePath;
+
+}
+
+
+/* =========================================================
+   SERVIDOR PHP
+========================================================= */
+
 /**
  * Comprueba si un puerto está disponible.
  */
@@ -113,7 +1015,9 @@ function isPortAvailable(port) {
 
     return new Promise((resolve) => {
 
-        const server = net.createServer();
+        const server =
+            net.createServer();
+
 
         server.once(
             'error',
@@ -123,6 +1027,7 @@ function isPortAvailable(port) {
 
             }
         );
+
 
         server.once(
             'listening',
@@ -139,6 +1044,7 @@ function isPortAvailable(port) {
             }
         );
 
+
         server.listen(
             port,
             HOST
@@ -152,18 +1058,32 @@ function isPortAvailable(port) {
 /**
  * Espera a que el servidor PHP inicie.
  */
-async function waitForServer(retries = 60) {
+async function waitForServer(
+    retries = 60
+) {
 
-    for (let i = 0; i < retries; i++) {
+    for (
+        let i = 0;
+        i < retries;
+        i++
+    ) {
 
         const available =
-            await isPortAvailable(PORT);
+            await isPortAvailable(
+                PORT
+            );
 
+
+        /**
+         * Si el puerto ya NO está disponible,
+         * PHP probablemente ya inició.
+         */
         if (!available) {
 
             return true;
 
         }
+
 
         await new Promise(
             (resolve) => {
@@ -177,6 +1097,7 @@ async function waitForServer(retries = 60) {
         );
 
     }
+
 
     return false;
 
@@ -195,27 +1116,69 @@ async function startPhpServer() {
         getPhpPath();
 
 
-    console.log('==============================');
-    console.log('SkyNetwork');
+    /**
+     * Preparar la BD persistente ANTES
+     * de iniciar PHP.
+     */
+    const databasePath =
+        prepareDatabase();
+
+
+    /**
+     * Verificar PHP.
+     */
+    if (!fs.existsSync(phpPath)) {
+
+        throw new Error(
+            'No se encontró PHP Portable en: '
+            + phpPath
+        );
+
+    }
+
+
+    console.log('');
+    console.log('========================================');
+    console.log('           SKYNETWORK');
+    console.log('========================================');
+
     console.log(
         'Versión:',
         app.getVersion()
     );
+
     console.log(
         'Modo empaquetado:',
         app.isPackaged
     );
+
     console.log(
         'Proyecto PHP:',
         projectPath
     );
+
     console.log(
         'PHP:',
         phpPath
     );
-    console.log('==============================');
+
+    console.log(
+        'Base de datos persistente:',
+        databasePath
+    );
+
+    console.log(
+        'Carpeta de backups:',
+        getBackupsDirectory()
+    );
+
+    console.log('========================================');
+    console.log('');
 
 
+    /**
+     * Iniciar PHP.
+     */
     phpProcess = spawn(
 
         phpPath,
@@ -231,13 +1194,25 @@ async function startPhpServer() {
 
             cwd: projectPath,
 
-            windowsHide: true
+            windowsHide: true,
+
+            env: {
+
+                ...process.env,
+
+                SKYNETWORK_DB_PATH:
+                    databasePath
+
+            }
 
         }
 
     );
 
 
+    /**
+     * Logs PHP.
+     */
     phpProcess.stdout.on(
         'data',
         (data) => {
@@ -264,6 +1239,9 @@ async function startPhpServer() {
     );
 
 
+    /**
+     * Error PHP.
+     */
     phpProcess.on(
         'error',
         (error) => {
@@ -277,6 +1255,9 @@ async function startPhpServer() {
     );
 
 
+    /**
+     * PHP finalizó.
+     */
     phpProcess.on(
         'exit',
         (code) => {
@@ -295,38 +1276,40 @@ async function startPhpServer() {
 }
 
 
-/**
- * Crea la ventana principal.
- */
+/* =========================================================
+   VENTANA PRINCIPAL
+========================================================= */
+
 function createWindow() {
 
     const iconPath =
         getIconPath();
 
 
-    mainWindow = new BrowserWindow({
+    mainWindow =
+        new BrowserWindow({
 
-        width: 1440,
-        height: 900,
+            width: 1440,
+            height: 900,
 
-        minWidth: 1024,
-        minHeight: 700,
+            minWidth: 1024,
+            minHeight: 700,
 
-        title: 'SkyNetwork',
+            title: 'SkyNetwork',
 
-        icon: iconPath,
+            icon: iconPath,
 
-        autoHideMenuBar: true,
+            autoHideMenuBar: true,
 
-        webPreferences: {
+            webPreferences: {
 
-            contextIsolation: true,
+                contextIsolation: true,
 
-            nodeIntegration: false
+                nodeIntegration: false
 
-        }
+            }
 
-    });
+        });
 
 
     mainWindow.loadURL(
@@ -352,9 +1335,7 @@ function createWindow() {
 
 
 /**
- * Se encontró una actualización.
- *
- * SOLO aquí mostramos una ventana al usuario.
+ * Nueva actualización disponible.
  */
 autoUpdater.on(
     'update-available',
@@ -411,11 +1392,9 @@ Nueva versión: ${info.version}
 
 
 /**
- * NO hay actualización.
+ * No hay actualización.
  *
- * IMPORTANTE:
- * Aquí NO mostramos ningún diálogo.
- * Solo registramos en consola.
+ * Completamente silencioso para el usuario.
  */
 autoUpdater.on(
     'update-not-available',
@@ -474,7 +1453,11 @@ autoUpdater.on(
                     `SkyNetwork ${info.version} está listo para instalar.`,
 
                 detail:
-                    'La aplicación debe reiniciarse para completar la actualización.',
+                    `Antes de instalar la actualización se creará
+automáticamente un respaldo de seguridad de tu base de datos.
+
+La aplicación debe reiniciarse para completar
+la actualización.`,
 
                 buttons: [
                     'Reiniciar e instalar',
@@ -490,6 +1473,106 @@ autoUpdater.on(
 
         if (result.response === 0) {
 
+
+            /* =============================================
+               BACKUP ANTES DE ACTUALIZAR
+            ============================================= */
+
+            console.log(
+                'Creando respaldo antes de instalar actualización...'
+            );
+
+
+            const backupResult =
+                createDatabaseBackup(
+                    'before-update'
+                );
+
+
+            /**
+             * Si el backup falla, avisar.
+             */
+            if (!backupResult.success) {
+
+                console.error(
+                    'La actualización fue detenida porque '
+                    + 'no se pudo crear el respaldo.'
+                );
+
+
+                const backupErrorResult =
+                    await dialog.showMessageBox({
+
+                        type: 'warning',
+
+                        title:
+                            'No se pudo crear el respaldo',
+
+                        message:
+                            'SkyNetwork no pudo crear un respaldo automático de seguridad.',
+
+                        detail:
+                            `Error: ${backupResult.error}
+
+Se recomienda NO continuar hasta verificar la base de datos.
+
+¿Deseas instalar la actualización de todos modos?`,
+
+                        buttons: [
+                            'Cancelar actualización',
+                            'Instalar de todos modos'
+                        ],
+
+                        defaultId: 0,
+
+                        cancelId: 0
+
+                    });
+
+
+                if (
+                    backupErrorResult.response === 0
+                ) {
+
+                    console.log(
+                        'Usuario canceló la actualización '
+                        + 'por fallo del backup.'
+                    );
+
+                    return;
+
+                }
+
+            } else {
+
+                /**
+                 * Evitar crear un segundo backup inmediatamente
+                 * cuando quitAndInstall cierre la aplicación.
+                 */
+                updateBackupCompleted = true;
+
+
+                console.log(
+                    'Respaldo creado exitosamente antes de actualizar.'
+                );
+
+                console.log(
+                    'Ruta del backup:',
+                    backupResult.backupPath
+                );
+
+            }
+
+
+            /* =============================================
+               INSTALAR ACTUALIZACIÓN
+            ============================================= */
+
+            console.log(
+                'Iniciando instalación de actualización...'
+            );
+
+
             autoUpdater.quitAndInstall();
 
         }
@@ -499,7 +1582,7 @@ autoUpdater.on(
 
 
 /**
- * Error durante la actualización.
+ * Error durante actualización.
  */
 autoUpdater.on(
     'error',
@@ -512,8 +1595,7 @@ autoUpdater.on(
 
 
         /**
-         * Mostramos error únicamente si la aplicación
-         * está empaquetada.
+         * No mostrar errores durante desarrollo.
          */
         if (app.isPackaged) {
 
@@ -543,9 +1625,6 @@ autoUpdater.on(
  */
 function checkForUpdates() {
 
-    /**
-     * En desarrollo no buscamos actualizaciones.
-     */
     if (!app.isPackaged) {
 
         console.log(
@@ -571,12 +1650,14 @@ function checkForUpdates() {
    INICIO DE ELECTRON
 ========================================================= */
 
-
 app.whenReady().then(
     async () => {
 
         try {
 
+            /**
+             * Iniciar PHP y preparar BD persistente.
+             */
             const started =
                 await startPhpServer();
 
@@ -590,17 +1671,15 @@ app.whenReady().then(
             }
 
 
+            /**
+             * Crear interfaz.
+             */
             createWindow();
 
 
             /**
-             * Esperamos 5 segundos para que:
-             *
-             * 1. PHP termine de iniciar.
-             * 2. La interfaz cargue.
-             * 3. No afectemos la experiencia inicial.
-             *
-             * La búsqueda ocurre en segundo plano.
+             * Buscar actualizaciones después
+             * de que la aplicación esté funcionando.
              */
             setTimeout(
                 () => {
@@ -634,21 +1713,149 @@ app.whenReady().then(
 );
 
 
+/* =========================================================
+   CIERRE SEGURO + RESPALDO AUTOMÁTICO
+========================================================= */
+
 /**
- * Cierra PHP cuando SkyNetwork termina.
+ * Antes de cerrar completamente SkyNetwork:
+ *
+ * 1. Crear respaldo automático.
+ * 2. Consolidar SQLite WAL.
+ * 3. Después cerrar PHP.
+ *
+ * IMPORTANTE:
+ *
+ * El backup se crea ANTES de detener PHP
+ * para asegurar que todos los cambios recientes
+ * estén disponibles.
  */
 app.on(
     'before-quit',
     () => {
+
+        /**
+         * Evitar ejecutar el proceso varias veces.
+         */
+        if (isQuitting) {
+
+            return;
+
+        }
+
+
+        isQuitting = true;
+
+
+        console.log('');
+        console.log(
+            '========================================'
+        );
+
+        console.log(
+            'CERRANDO SKYNETWORK'
+        );
+
+        console.log(
+            '========================================'
+        );
+
+
+        /* =============================================
+           RESPALDO AUTOMÁTICO AL CERRAR
+        ============================================= */
+
+        if (
+            CREATE_BACKUP_ON_EXIT
+            && !shutdownBackupCompleted
+            && !updateBackupCompleted
+        ) {
+
+            console.log(
+                'Creando respaldo automático antes de cerrar...'
+            );
+
+
+            const backupResult =
+                createDatabaseBackup(
+                    'application-close'
+                );
+
+
+            if (backupResult.success) {
+
+                shutdownBackupCompleted = true;
+
+
+                console.log(
+                    'Respaldo automático creado correctamente.'
+                );
+
+                console.log(
+                    'Archivo:',
+                    backupResult.backupPath
+                );
+
+            } else {
+
+                console.error(
+                    'No fue posible crear el respaldo automático:',
+                    backupResult.error
+                );
+
+            }
+
+        } else if (updateBackupCompleted) {
+
+            console.log(
+                'Backup antes de actualización ya creado.'
+            );
+
+            console.log(
+                'Se evita crear un respaldo duplicado.'
+            );
+
+        }
+
+
+        /* =============================================
+           CERRAR PHP
+        ============================================= */
 
         if (
             phpProcess &&
             !phpProcess.killed
         ) {
 
-            phpProcess.kill();
+            try {
+
+                phpProcess.kill();
+
+                console.log(
+                    'Servidor PHP detenido.'
+                );
+
+            } catch (error) {
+
+                console.error(
+                    'Error cerrando PHP:',
+                    error.message
+                );
+
+            }
 
         }
+
+
+        console.log(
+            'SkyNetwork cerrado correctamente.'
+        );
+
+        console.log(
+            '========================================'
+        );
+
+        console.log('');
 
     }
 );
