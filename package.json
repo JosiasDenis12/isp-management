@@ -1,6 +1,6 @@
 {
   "name": "skynetwork",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "SkyNetwork - Sistema de gestión para proveedores de internet",
   "main": "electron/main.js",
   "private": true,
