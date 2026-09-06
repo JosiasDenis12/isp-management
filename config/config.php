@@ -1,6 +1,8 @@
 <?php
 // Configuración general de la aplicación
-define('BASE_URL', 'http://localhost/isp-management');
+// El servidor embebido de Electron se publica en la raíz; WAMP conserva su ruta.
+$isElectronServer = isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 8080;
+define('BASE_URL', $isElectronServer ? '' : 'http://localhost/isp-management');
 define('APP_NAME', 'Sistema de Gestión ISP');
 define('APP_VERSION', '1.0.0');
 

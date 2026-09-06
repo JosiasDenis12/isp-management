@@ -10,6 +10,7 @@ require_once 'controllers/EquipoController.php';
 require_once 'controllers/ReporteController.php';
 require_once 'controllers/AuthController.php';
 require_once 'controllers/SearchController.php';
+require_once 'controllers/ConfiguracionController.php';
 
 $router = new Router();
 
@@ -88,6 +89,9 @@ $router->addRoute('GET', '/reportes/equipos-instalados', 'ReporteController', 'e
 // Búsqueda global
 $router->addRoute('GET', '/search', 'SearchController', 'index');
 $router->addRoute('GET', '/search/suggest', 'SearchController', 'suggest');
+
+// Configuración y restauración de respaldos (la operación se ejecuta en Electron).
+$router->addRoute('GET', '/configuracion', 'ConfiguracionController', 'index');
 
 // Rutas de autenticación
 $router->addRoute('GET', '/login', 'AuthController', 'login');

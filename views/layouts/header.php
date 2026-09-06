@@ -542,7 +542,7 @@
                         </li>
                         <li><div class="nav-section">SISTEMA</div></li>
                         <li class="nav-item">
-                            <a class="nav-link" href="setup.php">
+                            <a class="nav-link <?php echo isActiveRoute('/configuracion') ? 'active' : ''; ?>" href="<?php echo url('configuracion'); ?>">
                                 <i class="fas fa-gear me-2"></i>
                                 Configuración
                             </a>

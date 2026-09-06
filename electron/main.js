@@ -1,7 +1,8 @@
 const {
     app,
     BrowserWindow,
-    dialog
+    dialog,
+    ipcMain
 } = require('electron');
 
 const path = require('path');
@@ -32,6 +33,7 @@ let shutdownInProgress = false;
 let shutdownBackupCompleted = false;
 let updateBackupCompleted = false;
 let allowWindowClose = false;
+let restoreInProgress = false;
 
 
 const HOST = '127.0.0.1';
@@ -280,6 +282,103 @@ function getBackupTimestamp() {
 
     return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
 
+}
+
+
+function validateSqliteDatabase(databasePath, label = 'La base de datos') {
+    if (!fs.existsSync(databasePath)) {
+        throw new Error(`${label} no existe.`);
+    }
+
+    if (fs.statSync(databasePath).size === 0) {
+        throw new Error(`${label} está vacío.`);
+    }
+
+    const phpPath = getPhpPath();
+    if (!fs.existsSync(phpPath)) {
+        throw new Error('No se encontró PHP Portable para validar SQLite.');
+    }
+
+    const escapedDatabasePath = databasePath
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+
+    const validationCode = `
+        try {
+            $pdo = new PDO('sqlite:${escapedDatabasePath}');
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $result = $pdo->query('PRAGMA integrity_check')->fetchColumn();
+            if ($result !== 'ok') throw new Exception('SQLite integrity_check failed: ' . $result);
+            echo 'SQLITE_VALID';
+        } catch (Throwable $e) {
+            fwrite(STDERR, $e->getMessage());
+            exit(1);
+        }
+    `;
+
+    const result = spawnSync(phpPath, ['-r', validationCode], {
+        windowsHide: true,
+        encoding: 'utf8',
+        timeout: 30000
+    });
+
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+        throw new Error(`${label} no pasó la validación SQLite: ${result.stderr || `Código ${result.status}`}`);
+    }
+
+    return true;
+}
+
+
+function getBackupPathFromFile(backupFile) {
+    if (
+        typeof backupFile !== 'string'
+        || path.basename(backupFile) !== backupFile
+        || !backupFile.startsWith('skynetwork-')
+        || !backupFile.endsWith('.db')
+    ) {
+        throw new Error('El backup seleccionado no es válido.');
+    }
+
+    const backupPath = path.join(getBackupsDirectory(), backupFile);
+    if (!fs.existsSync(backupPath) || !fs.statSync(backupPath).isFile()) {
+        throw new Error('El archivo de backup seleccionado ya no existe.');
+    }
+
+    return backupPath;
+}
+
+
+function listDatabaseBackups() {
+    const backupsDirectory = getBackupsDirectory();
+    if (!fs.existsSync(backupsDirectory)) return [];
+
+    return fs.readdirSync(backupsDirectory)
+        .filter((file) => file.startsWith('skynetwork-') && file.endsWith('.db'))
+        .map((file) => {
+            const backupPath = path.join(backupsDirectory, file);
+            const stats = fs.statSync(backupPath);
+            const metadataPath = backupPath.replace(/\.db$/, '.json');
+            let metadata = {};
+
+            try {
+                if (fs.existsSync(metadataPath)) {
+                    metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+                }
+            } catch (error) {
+                writeLog(`No fue posible leer metadata de ${file}: ${error.message}`, 'WARN');
+            }
+
+            return {
+                file,
+                reason: typeof metadata.reason === 'string' ? metadata.reason : 'Desconocido',
+                createdAt: metadata.createdAt || stats.mtime.toISOString(),
+                size: stats.size,
+                validation: metadata.validation || 'Sin metadata'
+            };
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 
@@ -649,7 +748,7 @@ function checkpointDatabase() {
    LIMPIAR BACKUPS ANTIGUOS
 ========================================================= */
 
-function cleanupOldBackups() {
+function cleanupOldBackups(protectedBackupFiles = []) {
 
     const backupsDirectory =
         getBackupsDirectory();
@@ -723,6 +822,17 @@ function cleanupOldBackups() {
                 const backup of oldBackups
             ) {
 
+                if (protectedBackupFiles.includes(backup.file)) {
+
+                    writeLog(
+                        'Se conserva temporalmente el backup seleccionado: '
+                        + backup.file
+                    );
+
+                    continue;
+
+                }
+
                 try {
 
                     fs.unlinkSync(
@@ -789,7 +899,8 @@ function cleanupOldBackups() {
 ========================================================= */
 
 function createDatabaseBackup(
-    reason = 'automatic'
+    reason = 'automatic',
+    protectedBackupFiles = []
 ) {
 
     const databasePath =
@@ -1188,7 +1299,7 @@ function createDatabaseBackup(
         );
 
 
-        cleanupOldBackups();
+        cleanupOldBackups(protectedBackupFiles);
 
 
         return {
@@ -1226,6 +1337,168 @@ function createDatabaseBackup(
     }
 
 }
+
+
+async function restoreDatabaseBackup(backupFile) {
+    const databasePath = getPersistentDatabasePath();
+    let safetyBackupPath = null;
+    let databaseWasReplaced = false;
+    let phpWasStopped = false;
+
+    try {
+        writeLog('========================================');
+        writeLog('INICIANDO RESTAURACIÓN DE BASE DE DATOS');
+        writeLog(`Backup seleccionado: ${backupFile}`);
+        writeLog(`Base destino persistente: ${databasePath}`);
+
+        const backupPath = getBackupPathFromFile(backupFile);
+        validateSqliteDatabase(backupPath, 'El backup seleccionado');
+        writeLog('Backup seleccionado validado correctamente.');
+
+        if (!fs.existsSync(databasePath)) {
+            throw new Error('No existe la base persistente que se va a restaurar.');
+        }
+
+        if (!await stopPhpServer()) {
+            throw new Error('No fue posible detener PHP antes de restaurar.');
+        }
+
+        phpWasStopped = true;
+
+        const safetyBackup = createDatabaseBackup(
+            'before-restore',
+            [backupFile]
+        );
+        if (!safetyBackup.success) {
+            throw new Error(`No fue posible crear el backup de seguridad: ${safetyBackup.error}`);
+        }
+
+        safetyBackupPath = safetyBackup.backupPath;
+        writeLog(`Backup de seguridad creado: ${safetyBackupPath}`);
+
+        const restoreTempPath = path.join(
+            path.dirname(databasePath),
+            `skynetwork.restore-${getBackupTimestamp()}.tmp`
+        );
+
+        try {
+            fs.copyFileSync(backupPath, restoreTempPath);
+            validateSqliteDatabase(restoreTempPath, 'La copia temporal de restauración');
+
+            // PHP ya está detenido: no pueden quedar sidecars WAL/SHM de la base anterior.
+            for (const sidecar of [`${databasePath}-wal`, `${databasePath}-shm`]) {
+                if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
+            }
+
+            fs.copyFileSync(restoreTempPath, databasePath);
+            databaseWasReplaced = true;
+            validateSqliteDatabase(databasePath, 'La base restaurada');
+        } finally {
+            if (fs.existsSync(restoreTempPath)) fs.unlinkSync(restoreTempPath);
+        }
+
+        writeLog('BASE RESTAURADA CORRECTAMENTE');
+        writeLog(`Origen: ${backupPath}`);
+        writeLog(`Destino persistente: ${databasePath}`);
+        writeLog('Validación SQLite posterior: OK');
+        writeLog('========================================');
+
+        return {
+            success: true,
+            safetyBackupFile: safetyBackup.backupFileName,
+            phpWasStopped
+        };
+    } catch (error) {
+        writeLog(`ERROR RESTAURANDO BACKUP: ${error.message}`, 'ERROR');
+
+        if (databaseWasReplaced && safetyBackupPath) {
+            try {
+                fs.copyFileSync(safetyBackupPath, databasePath);
+                validateSqliteDatabase(databasePath, 'La recuperación automática');
+                writeLog('Se recuperó automáticamente la base previa a la restauración.', 'WARN');
+            } catch (recoveryError) {
+                writeLog(`ERROR EN RECUPERACIÓN AUTOMÁTICA: ${recoveryError.message}`, 'ERROR');
+            }
+        }
+
+        return { success: false, error: error.message, phpWasStopped };
+    }
+}
+
+
+/* =========================================================
+   IPC: RESPALDOS
+========================================================= */
+
+function isTrustedBackupRenderer(event) {
+    const senderUrl = event.senderFrame && event.senderFrame.url;
+    return typeof senderUrl === 'string'
+        && senderUrl.startsWith(`http://${HOST}:${PORT}/`);
+}
+
+
+ipcMain.handle('skynetwork:backups:list', (event) => {
+    if (!isTrustedBackupRenderer(event)) {
+        return { success: false, error: 'Origen no autorizado.', backups: [] };
+    }
+
+    try {
+        return { success: true, backups: listDatabaseBackups() };
+    } catch (error) {
+        writeLog(`ERROR LISTANDO BACKUPS: ${error.message}`, 'ERROR');
+        return { success: false, error: error.message, backups: [] };
+    }
+});
+
+
+ipcMain.handle('skynetwork:backups:restore', async (event, backupFile) => {
+    if (!isTrustedBackupRenderer(event)) {
+        return { success: false, error: 'Origen no autorizado.' };
+    }
+
+    if (restoreInProgress) {
+        return { success: false, error: 'Ya hay una restauración en progreso.' };
+    }
+
+    const confirmation = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Restaurar respaldo',
+        message: 'Se reemplazará la base de datos actual.',
+        detail: 'Antes de continuar se creará un backup de seguridad. La aplicación se reiniciará al terminar.',
+        buttons: ['Cancelar', 'Restaurar y reiniciar'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+    });
+
+    if (confirmation.response !== 1) {
+        writeLog('Restauración cancelada por el usuario.');
+        return { success: false, cancelled: true };
+    }
+
+    restoreInProgress = true;
+    const result = await restoreDatabaseBackup(backupFile);
+
+    if (result.success) {
+        // Dejamos que el renderer reciba la confirmación antes de cerrar el proceso.
+        setTimeout(() => {
+            isQuitting = true;
+            allowWindowClose = true;
+            app.relaunch();
+            app.exit(0);
+        }, 700);
+    } else if (result.phpWasStopped) {
+        // Si PHP ya fue detenido, recuperamos una aplicación operativa tras el error.
+        try {
+            await startPhpServer();
+        } catch (restartError) {
+            writeLog(`ERROR REINICIANDO PHP TRAS RESTAURACIÓN FALLIDA: ${restartError.message}`, 'ERROR');
+        }
+    }
+
+    restoreInProgress = false;
+    return result;
+});
 
 
 /* =========================================================
@@ -1764,7 +2037,12 @@ function createWindow() {
 
                 contextIsolation: true,
 
-                nodeIntegration: false
+                nodeIntegration: false,
+
+                preload: path.join(
+                    __dirname,
+                    'preload.js'
+                )
 
             }
 
