@@ -2,6 +2,7 @@
 require_once 'models/Cliente.php';
 require_once 'models/Pago.php';
 require_once 'models/Equipo.php';
+require_once 'lib/DashboardService.php';
 
 class DashboardController {
     
@@ -13,47 +14,40 @@ class DashboardController {
                 throw new Exception("No se puede conectar a la base de datos");
             }
             
-            $clienteModel = new Cliente();
-            $pagoModel = new Pago();
-            $equipoModel = new Equipo();
-            
-            $clientesStats = $clienteModel->getStats();
-            $pagosStats = $pagoModel->getStats();
-            $equiposStats = $equipoModel->getStats();
-            $proximosVencimientos = $pagoModel->getProximosVencimientos();
-            
-            // Información adicional de pagos
-            $clientesVencidos = $clienteModel->getClientesConPagosVencidos();
-            $clientesPorVencer = $clienteModel->getClientesConPagosPorVencer(7);
-            $resumenPagos = $clienteModel->getResumenEstadoPagos();
+            $dashboard = (new DashboardService())->getDashboard((string)($_GET['periodo'] ?? '7d'));
             
             $data = [
                 'title' => 'Dashboard - ' . APP_NAME,
-                'clientesStats' => $clientesStats,
-                'pagosStats' => $pagosStats,
-                'equiposStats' => $equiposStats,
-                'proximosVencimientos' => $proximosVencimientos,
-                'clientesVencidos' => $clientesVencidos,
-                'clientesPorVencer' => $clientesPorVencer,
-                'resumenPagos' => $resumenPagos,
+                'dashboard' => $dashboard,
                 'error' => null
             ];
             
         } catch (Exception $e) {
             $data = [
                 'title' => 'Dashboard - ' . APP_NAME,
-                'clientesStats' => ['total' => 0, 'activos' => 0, 'suspendidos' => 0, 'pendientes' => 0],
-                'pagosStats' => ['total_pagos' => 0, 'ingresos_mes' => 0, 'pagos_vencidos' => 0, 'pagos_pendientes' => 0],
-                'equiposStats' => ['total_equipos' => 0, 'operativos' => 0, 'necesitan_revision' => 0],
-                'proximosVencimientos' => [],
-                'clientesVencidos' => [],
-                'clientesPorVencer' => [],
-                'resumenPagos' => ['clientes_con_pagos_vencidos' => 0, 'monto_total_vencido' => 0],
+                'dashboard' => ['period'=>'7d','stats'=>[],'series'=>[],'alerts'=>[],'recentActivity'=>[],'calendar'=>['month'=>date('Y-m'),'events'=>[]]],
                 'error' => $e->getMessage()
             ];
         }
         
         $this->loadView('dashboard/index', $data);
+    }
+
+    public function actividad() {
+        $data = [
+            'title' => 'Actividad - ' . APP_NAME,
+            'activities' => (new DashboardService())->getActivity(200),
+        ];
+        $this->loadView('dashboard/actividad', $data);
+    }
+
+    public function calendario() {
+        $month = (string)($_GET['mes'] ?? date('Y-m'));
+        $data = [
+            'title' => 'Calendario - ' . APP_NAME,
+            'calendar' => (new DashboardService())->getCalendar($month),
+        ];
+        $this->loadView('dashboard/calendario', $data);
     }
     
     private function loadView($view, $data = []) {

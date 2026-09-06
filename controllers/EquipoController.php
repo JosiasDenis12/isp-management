@@ -8,7 +8,11 @@ class EquipoController {
     
     public function index() {
         $equipoModel = new Equipo();
-        $equipos = $equipoModel->getAll();
+        // Conserva una única consulta para la lista y para los accesos filtrados
+        // desde las alertas del dashboard.
+        $equipos = $equipoModel->getReporteEquiposInstalados([
+            'estado_tecnico' => (string)($_GET['estado_tecnico'] ?? ''),
+        ]);
         
         $data = [
             'title' => 'Equipos Técnicos - ' . APP_NAME,

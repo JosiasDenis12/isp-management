@@ -53,6 +53,12 @@
             background-color: rgba(255,255,255,0.1);
             transform: translateX(5px);
         }
+        /* Estructura visual SkyNetwork: barra lateral de la referencia. */
+        .sidebar { background: linear-gradient(180deg,#262a83 0%,#3f3197 100%); }
+        .sidebar .nav-link { margin: .36rem 0; padding: .78rem .85rem; font-weight: 500; }
+        .sidebar .nav-link.active { background: rgba(131,142,255,.35); transform: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+        .brand-subtitle { color: rgba(255,255,255,.7); font-size: .78rem; margin-top: -4px; }
+        .nav-section { color: rgba(255,255,255,.62); font-size: .65rem; letter-spacing: .06em; margin: 1.1rem .7rem .35rem; }
 
         .card {
             border: none;
@@ -500,6 +506,7 @@
                             <i class="fas fa-wifi me-2"></i>
                             Skynetwork
                         </h4>
+                        <div class="brand-subtitle">La Red del Cielo</div>
                     </div>
                     
                     <ul class="nav flex-column">
@@ -531,6 +538,13 @@
                             <a class="nav-link <?php echo isActiveRoute('/reportes') ? 'active' : ''; ?>" href="<?php echo url('reportes'); ?>">
                                 <i class="fas fa-chart-bar me-2"></i>
                                 Reportes
+                            </a>
+                        </li>
+                        <li><div class="nav-section">SISTEMA</div></li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="setup.php">
+                                <i class="fas fa-gear me-2"></i>
+                                Configuración
                             </a>
                         </li>
                         <?php if (isAuthenticated()): ?>
@@ -566,6 +580,7 @@
                                         autocomplete="off"
                                         data-suggest-url="<?php echo url('search/suggest'); ?>"
                                     >
+                                    <span class="input-group-text d-none d-md-flex small text-muted">Ctrl + K</span>
                                 </div>
                                 <div id="topbarSearchMenu" class="dropdown-menu search-suggest-menu" role="listbox" aria-label="Sugerencias"></div>
                             </form>
@@ -574,7 +589,6 @@
                         <div class="d-flex align-items-center gap-2">
                             <button type="button" class="btn btn-outline-secondary btn-icon position-relative" title="Notificaciones" aria-label="Notificaciones">
                                 <i class="fas fa-bell"></i>
-                                <span class="badge bg-danger badge-dot">2</span>
                             </button>
                             <button type="button" class="btn btn-outline-secondary btn-icon" title="Ayuda" aria-label="Ayuda">
                                 <i class="fas fa-circle-question"></i>

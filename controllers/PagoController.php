@@ -6,7 +6,11 @@ class PagoController {
     
     public function index() {
         $pagoModel = new Pago();
-        $pagos = $pagoModel->getAll();
+        // Los enlaces del dashboard pueden abrir directamente el estado solicitado.
+        // El modelo valida los valores permitidos antes de construir la consulta.
+        $pagos = $pagoModel->getReportePagos([
+            'estado' => (string)($_GET['estado'] ?? ''),
+        ]);
         $proximosVencimientos = $pagoModel->getProximosVencimientos();
         $kpis = $pagoModel->getKpis();
         $clientes = (new Cliente())->getAll();

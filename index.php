@@ -31,6 +31,8 @@ if (!isAuthenticated()) {
 // Definir rutas
 $router->addRoute('GET', '/dashboard', 'DashboardController', 'index');
 $router->addRoute('GET', '/', 'DashboardController', 'index');
+$router->addRoute('GET', '/dashboard/actividad', 'DashboardController', 'actividad');
+$router->addRoute('GET', '/dashboard/calendario', 'DashboardController', 'calendario');
 
 // Rutas de clientes
 $router->addRoute('GET', '/clientes', 'ClienteController', 'index');
