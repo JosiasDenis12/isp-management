@@ -34,6 +34,7 @@ let shutdownBackupCompleted = false;
 let updateBackupCompleted = false;
 let allowWindowClose = false;
 let restoreInProgress = false;
+let importInProgress = false;
 
 
 const HOST = '127.0.0.1';
@@ -325,6 +326,64 @@ function validateSqliteDatabase(databasePath, label = 'La base de datos') {
     if (result.error) throw result.error;
     if (result.status !== 0) {
         throw new Error(`${label} no pasó la validación SQLite: ${result.stderr || `Código ${result.status}`}`);
+    }
+
+    return true;
+}
+
+
+function validateSkyNetworkDatabaseStructure(databasePath, label = 'La base de datos') {
+    const phpPath = getPhpPath();
+    if (!fs.existsSync(phpPath)) {
+        throw new Error('No se encontró PHP Portable para validar la estructura de la base.');
+    }
+
+    const escapedDatabasePath = databasePath
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+
+    // Estas tablas y columnas son el contrato mínimo de una instalación SkyNetwork.
+    // No se exige una versión exacta para conservar compatibilidad con bases anteriores.
+    const validationCode = `
+        try {
+            $pdo = new PDO('sqlite:${escapedDatabasePath}');
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $required = [
+                'clientes' => ['id', 'nombre'],
+                'equipos' => ['id', 'cliente_id'],
+                'pagos' => ['id', 'cliente_id'],
+                'usuarios' => ['id']
+            ];
+            $tables = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'")
+                ->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($required as $table => $columns) {
+                if (!in_array($table, $tables, true)) {
+                    throw new Exception("Falta la tabla requerida: {$table}.");
+                }
+                $actualColumns = $pdo->query("PRAGMA table_info('" . str_replace("'", "''", $table) . "')")
+                    ->fetchAll(PDO::FETCH_COLUMN, 1);
+                foreach ($columns as $column) {
+                    if (!in_array($column, $actualColumns, true)) {
+                        throw new Exception("Falta la columna requerida {$table}.{$column}.");
+                    }
+                }
+            }
+            echo 'SKYNETWORK_SCHEMA_VALID';
+        } catch (Throwable $e) {
+            fwrite(STDERR, $e->getMessage());
+            exit(1);
+        }
+    `;
+
+    const result = spawnSync(phpPath, ['-r', validationCode], {
+        windowsHide: true,
+        encoding: 'utf8',
+        timeout: 30000
+    });
+
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+        throw new Error(`${label} no es una base compatible con SkyNetwork: ${result.stderr || `Código ${result.status}`}`);
     }
 
     return true;
@@ -1426,6 +1485,83 @@ async function restoreDatabaseBackup(backupFile) {
 }
 
 
+async function importExternalDatabase(sourcePath) {
+    const databasePath = getPersistentDatabasePath();
+    const temporaryPath = path.join(
+        path.dirname(databasePath),
+        `skynetwork.import-${getBackupTimestamp()}.tmp`
+    );
+    let safetyBackupPath = null;
+    let databaseWasReplaced = false;
+    let phpWasStopped = false;
+
+    try {
+        writeLog('========================================');
+        writeLog('INICIANDO IMPORTACIÓN DE BASE DE DATOS');
+        writeLog(`Archivo seleccionado: ${sourcePath}`);
+
+        // La primera validación no modifica nada y permite rechazar archivos ajenos pronto.
+        validateSqliteDatabase(sourcePath, 'El archivo seleccionado');
+        validateSkyNetworkDatabaseStructure(sourcePath, 'El archivo seleccionado');
+
+        fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+        fs.copyFileSync(sourcePath, temporaryPath);
+        validateSqliteDatabase(temporaryPath, 'La copia temporal importada');
+        validateSkyNetworkDatabaseStructure(temporaryPath, 'La copia temporal importada');
+
+        if (!fs.existsSync(databasePath)) {
+            throw new Error('No existe la base persistente que se va a reemplazar.');
+        }
+
+        if (!await stopPhpServer()) {
+            throw new Error('No fue posible detener PHP antes de importar la base.');
+        }
+        phpWasStopped = true;
+
+        const safetyBackup = createDatabaseBackup('before-import');
+        if (!safetyBackup.success) {
+            throw new Error(`No fue posible crear el backup de seguridad: ${safetyBackup.error}`);
+        }
+        safetyBackupPath = safetyBackup.backupPath;
+
+        // Sin PHP activo no hay escrituras ni sidecars WAL pendientes sobre la base destino.
+        for (const sidecar of [`${databasePath}-wal`, `${databasePath}-shm`]) {
+            if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
+        }
+
+        fs.copyFileSync(temporaryPath, databasePath);
+        databaseWasReplaced = true;
+        validateSqliteDatabase(databasePath, 'La base importada');
+        validateSkyNetworkDatabaseStructure(databasePath, 'La base importada');
+
+        writeLog('BASE IMPORTADA CORRECTAMENTE');
+        writeLog(`Backup preventivo: ${safetyBackupPath}`);
+        writeLog('========================================');
+        return { success: true, safetyBackupFile: safetyBackup.backupFileName, phpWasStopped };
+    } catch (error) {
+        writeLog(`ERROR IMPORTANDO BASE: ${error.message}`, 'ERROR');
+
+        if (databaseWasReplaced && safetyBackupPath) {
+            try {
+                fs.copyFileSync(safetyBackupPath, databasePath);
+                validateSqliteDatabase(databasePath, 'La recuperación automática');
+                writeLog('Se recuperó automáticamente la base previa a la importación.', 'WARN');
+            } catch (recoveryError) {
+                writeLog(`ERROR EN RECUPERACIÓN AUTOMÁTICA: ${recoveryError.message}`, 'ERROR');
+            }
+        }
+
+        return { success: false, error: error.message, phpWasStopped };
+    } finally {
+        if (fs.existsSync(temporaryPath)) {
+            try { fs.unlinkSync(temporaryPath); } catch (cleanupError) {
+                writeLog(`No se pudo eliminar el archivo temporal de importación: ${cleanupError.message}`, 'WARN');
+            }
+        }
+    }
+}
+
+
 /* =========================================================
    IPC: RESPALDOS
 ========================================================= */
@@ -1497,6 +1633,62 @@ ipcMain.handle('skynetwork:backups:restore', async (event, backupFile) => {
     }
 
     restoreInProgress = false;
+    return result;
+});
+
+
+ipcMain.handle('skynetwork:database:import', async (event) => {
+    if (!isTrustedBackupRenderer(event)) {
+        return { success: false, error: 'Origen no autorizado.' };
+    }
+
+    if (restoreInProgress || importInProgress) {
+        return { success: false, error: 'Ya hay una operación de base de datos en progreso.' };
+    }
+
+    const selection = await dialog.showOpenDialog(mainWindow, {
+        title: 'Seleccionar base de datos',
+        properties: ['openFile'],
+        filters: [{ name: 'SQLite Database', extensions: ['db', 'sqlite', 'sqlite3'] }]
+    });
+    if (selection.canceled || !selection.filePaths[0]) {
+        return { success: false, cancelled: true };
+    }
+
+    const confirmation = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Confirmar importación',
+        message: 'Esta acción reemplazará la base de datos actual de SkyNetwork.',
+        detail: 'Se validará el archivo seleccionado, se creará un backup automático y la aplicación se reiniciará al finalizar.',
+        buttons: ['Cancelar', 'Importar base'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+    });
+    if (confirmation.response !== 1) {
+        writeLog('Importación cancelada por el usuario.');
+        return { success: false, cancelled: true };
+    }
+
+    importInProgress = true;
+    const result = await importExternalDatabase(selection.filePaths[0]);
+
+    if (result.success) {
+        setTimeout(() => {
+            isQuitting = true;
+            allowWindowClose = true;
+            app.relaunch();
+            app.exit(0);
+        }, 700);
+    } else if (result.phpWasStopped) {
+        try {
+            await startPhpServer();
+        } catch (restartError) {
+            writeLog(`ERROR REINICIANDO PHP TRAS IMPORTACIÓN FALLIDA: ${restartError.message}`, 'ERROR');
+        }
+    }
+
+    importInProgress = false;
     return result;
 });
 

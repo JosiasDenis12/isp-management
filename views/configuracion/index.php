@@ -9,7 +9,19 @@
 
 <div id="backupUnsupported" class="alert alert-warning d-none" role="alert">
     <i class="fas fa-triangle-exclamation me-2"></i>
-    La restauración de respaldos está disponible únicamente desde la aplicación de escritorio SkyNetwork.
+    La gestión de respaldos y la importación de bases están disponibles únicamente desde la aplicación de escritorio SkyNetwork.
+</div>
+
+<div class="card mb-4">
+    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+            <h2 class="h5 mb-1"><i class="fas fa-database me-2 text-primary"></i>Gestión de base de datos</h2>
+            <p class="text-muted mb-0">Importa una base SQLite existente y compatible con SkyNetwork.</p>
+        </div>
+        <button id="importDatabase" type="button" class="btn btn-primary">
+            <i class="fas fa-file-import me-1"></i>Importar base de datos
+        </button>
+    </div>
 </div>
 
 <div class="alert alert-danger">
@@ -52,6 +64,7 @@
     const api = window.skyNetworkBackups;
     const rows = document.getElementById('backupRows');
     const refresh = document.getElementById('refreshBackups');
+    const importDatabase = document.getElementById('importDatabase');
     const message = document.getElementById('backupMessage');
 
     function escapeHtml(value) {
@@ -127,10 +140,30 @@
 
     refresh.addEventListener('click', loadBackups);
 
+    importDatabase.addEventListener('click', async function () {
+        if (!window.skyNetworkDatabase) return;
+
+        document.querySelectorAll('.restore-backup, #refreshBackups, #importDatabase').forEach(function (control) { control.disabled = true; });
+        showMessage('warning', 'Selecciona una base SQLite de SkyNetwork para validarla e importarla.');
+        const result = await window.skyNetworkDatabase.import();
+
+        if (result.success) {
+            showMessage('success', 'Base importada correctamente. SkyNetwork se reiniciará ahora.');
+            return;
+        }
+
+        if (!result.cancelled) {
+            showMessage('danger', result.error || 'No fue posible importar la base de datos.');
+        }
+        await loadBackups();
+        importDatabase.disabled = false;
+    });
+
     if (!api) {
         document.getElementById('backupUnsupported').classList.remove('d-none');
         rows.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Abre esta sección desde SkyNetwork para ver los respaldos.</td></tr>';
         refresh.disabled = true;
+        importDatabase.disabled = true;
         return;
     }
 
